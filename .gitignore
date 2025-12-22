@@ -1,0 +1,11 @@
+build/
+*.o
+*.obj
+*.dll
+*.exe
+*.lib
+*.so
+*.a
+*.exp
+!sokol-shdc/**
+!source/sokol/*/*wasm*.a
