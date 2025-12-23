@@ -5,7 +5,7 @@ sokol-shdc\win32\sokol-shdc -i source/shader.glsl -o source/shader.odin -l glsl3
 IF %ERRORLEVEL% NEQ 0 exit /b 1
 
 :: Point this to where you installed emscripten.
-set EMSCRIPTEN_SDK_DIR=c:\SDK\emsdk
+set EMSCRIPTEN_SDK_DIR=C:/Users/wes/Documents/windev/wasm-sokol-test/emsdk
 set OUT_DIR=build\web
 
 if not exist %OUT_DIR% mkdir %OUT_DIR%
