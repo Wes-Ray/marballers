@@ -1,11 +1,11 @@
 package main
 
 import "base:runtime"
-import "core:image/png"
+// import "core:image/png"
 import "core:log"
 import "core:math/linalg"
 import "core:os"
-import "core:slice"
+// import "core:slice"
 import "web"
 import sapp "sokol/app"
 import sg "sokol/gfx"
@@ -81,63 +81,6 @@ init :: proc "c" () {
 		logger = { func = slog.func },
 	})
 
-	/*
-		Cube vertex buffer with packed vertex formats for color and texture coords.
-		Note that a vertex format which must be portable across all
-		backends must only use the normalized integer formats
-		(BYTE4N, UBYTE4N, SHORT2N, SHORT4N), which can be converted
-		to floating point formats in the vertex shader inputs.
-	*/
-	// vertices := [?]Vertex {
-	// 	// pos               color       uvs
-	// 	{ -1.0, -1.0, -1.0,  0xFF0000FF,     0,     0 },
-	// 	{  1.0, -1.0, -1.0,  0xFF0000FF, 32767,     0 },
-	// 	{  1.0,  1.0, -1.0,  0xFF0000FF, 32767, 32767 },
-	// 	{ -1.0,  1.0, -1.0,  0xFF0000FF,     0, 32767 },
-
-	// 	{ -1.0, -1.0,  1.0,  0xFF00FF00,     0,     0 },
-	// 	{  1.0, -1.0,  1.0,  0xFF00FF00, 32767,     0 },
-	// 	{  1.0,  1.0,  1.0,  0xFF00FF00, 32767, 32767 },
-	// 	{ -1.0,  1.0,  1.0,  0xFF00FF00,     0, 32767 },
-
-	// 	{ -1.0, -1.0, -1.0,  0xFFFF0000,     0,     0 },
-	// 	{ -1.0,  1.0, -1.0,  0xFFFF0000, 32767,     0 },
-	// 	{ -1.0,  1.0,  1.0,  0xFFFF0000, 32767, 32767 },
-	// 	{ -1.0, -1.0,  1.0,  0xFFFF0000,     0, 32767 },
-
-	// 	{  1.0, -1.0, -1.0,  0xFFFF007F,     0,     0 },
-	// 	{  1.0,  1.0, -1.0,  0xFFFF007F, 32767,     0 },
-	// 	{  1.0,  1.0,  1.0,  0xFFFF007F, 32767, 32767 },
-	// 	{  1.0, -1.0,  1.0,  0xFFFF007F,     0, 32767 },
-
-	// 	{ -1.0, -1.0, -1.0,  0xFFFF7F00,     0,     0 },
-	// 	{ -1.0, -1.0,  1.0,  0xFFFF7F00, 32767,     0 },
-	// 	{  1.0, -1.0,  1.0,  0xFFFF7F00, 32767, 32767 },
-	// 	{  1.0, -1.0, -1.0,  0xFFFF7F00,     0, 32767 },
-
-	// 	{ -1.0,  1.0, -1.0,  0xFF007FFF,     0,     0 },
-	// 	{ -1.0,  1.0,  1.0,  0xFF007FFF, 32767,     0 },
-	// 	{  1.0,  1.0,  1.0,  0xFF007FFF, 32767, 32767 },
-	// 	{  1.0,  1.0, -1.0,  0xFF007FFF,     0, 32767 },
-	// }
-	// state.bind.vertex_buffers[0] = sg.make_buffer({
-	// 	data = { ptr = &vertices, size = size_of(vertices) },
-	// })
-
-	// create an index buffer for the cube
-	// indices := [?]u16 {
-	// 	0, 1, 2,  0, 2, 3,
-	// 	6, 5, 4,  7, 6, 4,
-	// 	8, 9, 10,  8, 10, 11,
-	// 	14, 13, 12,  15, 14, 12,
-	// 	16, 17, 18,  16, 18, 19,
-	// 	22, 21, 20,  23, 22, 20,
-	// }
-	// state.bind.index_buffer = sg.make_buffer({
-	// 	usage = { index_buffer = true },
-	// 	data = { ptr = &indices, size = size_of(indices) },
-	// })
-
 	//
 	// add sphere
 	// 
@@ -159,54 +102,6 @@ init :: proc "c" () {
 
 	state.bind.vertex_buffers[0] = sg.make_buffer(sshape.vertex_buffer_desc(buf))
 	state.bind.index_buffer      = sg.make_buffer(sshape.index_buffer_desc(buf))
-
-
-
-	// load favicon
-	if img_data, img_data_ok := read_entire_file("assets/round_cat.png", context.temp_allocator); img_data_ok {
-		if img, img_err := png.load_from_bytes(img_data, allocator = context.temp_allocator); img_err == nil {
-			sg_img := sg.make_image({
-				width = i32(img.width),
-				height = i32(img.height),
-				data = {
-					subimage = {
-						0 = {
-							0 = { ptr = raw_data(img.pixels.buf), size = uint(slice.size(img.pixels.buf[:])) },
-						},
-					},
-				},
-			})
-
-			state.bind.views[VIEW_tex] = sg.make_view({
-				texture = sg.Texture_View_Desc({image = sg_img}),
-			})
-		} else {
-			log.error(img_err)
-		}
-	} else {
-		log.error("Failed loading texture")
-	}
-
-	// a sampler with default options to sample the above image as texture
-	state.bind.samplers[SMP_smp] = sg.make_sampler({})
-
-	// shader and pipeline object
-	// state.pip = sg.make_pipeline({
-	// 	shader = sg.make_shader(texcube_shader_desc(sg.query_backend())),
-	// 	layout = {
-	// 		attrs = {
-	//			ATTR_texcube_pos = { format = .FLOAT3 },
-	// 			ATTR_texcube_color0 = { format = .UBYTE4N },
-	// 			ATTR_texcube_texcoord0 = { format = .SHORT2N },
-	// 		},
-	// 	},
-	// 	index_type = .UINT16,
-	// 	cull_mode = .BACK,
-	// 	depth = {
-	// 		compare = .LESS_EQUAL,
-	// 		write_enabled = true,
-	// 	},
-	// })
 
     // shader and pipeline object for sphere
     state.pip = sg.make_pipeline({

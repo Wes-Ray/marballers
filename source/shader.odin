@@ -33,7 +33,7 @@ Vs_Params :: struct #align(16) {
     using _: struct #packed {
         draw_mode: f32,
         _: [12]u8,
-        mvp: [16]f32,
+        mvp: Mat4,
     },
 }
 /*

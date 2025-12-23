@@ -1,5 +1,6 @@
 @header package main
 @header import sg "sokol/gfx"
+@ctype mat4 Mat4
 
 @vs vs
 layout(binding=0) uniform vs_params {
