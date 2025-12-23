@@ -1,43 +1,40 @@
-//------------------------------------------------------------------------------
-//  Shader code for texcube-sapp sample.
-//
-//  NOTE: This source file also uses the '#pragma sokol' form of the
-//  custom tags.
-//------------------------------------------------------------------------------
 @header package main
 @header import sg "sokol/gfx"
-@ctype mat4 Mat4
 
 @vs vs
 layout(binding=0) uniform vs_params {
+    float draw_mode;
     mat4 mvp;
 };
 
-in vec4 pos;
+in vec4 position;
+in vec3 normal;
+in vec2 texcoord;
 in vec4 color0;
-in vec2 texcoord0;
 
 out vec4 color;
-out vec2 uv;
 
 void main() {
-    gl_Position = mvp * pos;
-    color = color0;
-    uv = texcoord0;
+    gl_Position = mvp * position;
+    if (draw_mode == 0.0) {
+        color = vec4((normal + 1.0) * 0.5, 1.0);
+    }
+    else if (draw_mode == 1.0) {
+        color = vec4(texcoord, 0.0, 1.0);
+    }
+    else {
+        color = color0;
+    }
 }
 @end
 
 @fs fs
-layout(binding=0) uniform texture2D tex;
-layout(binding=0) uniform sampler smp;
-
 in vec4 color;
-in vec2 uv;
 out vec4 frag_color;
 
 void main() {
-    frag_color = texture(sampler2D(tex, smp), uv) * color;
+    frag_color = color;
 }
 @end
 
-@program texcube vs fs
+@program shapes vs fs

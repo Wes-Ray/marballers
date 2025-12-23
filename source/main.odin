@@ -1,6 +1,3 @@
-// This program draws a cube with a texture on the sides.
-//
-// Based on https://github.com/floooh/sokol-odin/tree/main/examples/texcube
 package main
 
 import "base:runtime"
@@ -14,6 +11,7 @@ import sapp "sokol/app"
 import sg "sokol/gfx"
 import sglue "sokol/glue"
 import slog "sokol/log"
+import sshape "sokol/shape"
 
 _ :: web 
 _ :: os
@@ -22,10 +20,18 @@ IS_WEB :: ODIN_ARCH == .wasm32 || ODIN_ARCH == .wasm64p32
 Mat4 :: matrix[4,4]f32
 Vec3 :: [3]f32
 
+SMP_smp :: 0
+
+Shape :: struct {
+	pos: Vec3,
+	draw: sshape.Element_Range,
+}
+
 state: struct {
 	pass_action: sg.Pass_Action,
 	pip: sg.Pipeline,
 	bind: sg.Bindings,
+	shape: Shape,
 	rx, ry: f32,
 }
 
@@ -36,6 +42,9 @@ Vertex :: struct {
 	color: u32,
 	u, v: u16,
 }
+
+vertices: [6 * 1024]sshape.Vertex
+indices: [16 * 1024]u16
 
 main :: proc() {
 	when IS_WEB {
@@ -79,56 +88,81 @@ init :: proc "c" () {
 		(BYTE4N, UBYTE4N, SHORT2N, SHORT4N), which can be converted
 		to floating point formats in the vertex shader inputs.
 	*/
-	vertices := [?]Vertex {
-		// pos               color       uvs
-		{ -1.0, -1.0, -1.0,  0xFF0000FF,     0,     0 },
-		{  1.0, -1.0, -1.0,  0xFF0000FF, 32767,     0 },
-		{  1.0,  1.0, -1.0,  0xFF0000FF, 32767, 32767 },
-		{ -1.0,  1.0, -1.0,  0xFF0000FF,     0, 32767 },
+	// vertices := [?]Vertex {
+	// 	// pos               color       uvs
+	// 	{ -1.0, -1.0, -1.0,  0xFF0000FF,     0,     0 },
+	// 	{  1.0, -1.0, -1.0,  0xFF0000FF, 32767,     0 },
+	// 	{  1.0,  1.0, -1.0,  0xFF0000FF, 32767, 32767 },
+	// 	{ -1.0,  1.0, -1.0,  0xFF0000FF,     0, 32767 },
 
-		{ -1.0, -1.0,  1.0,  0xFF00FF00,     0,     0 },
-		{  1.0, -1.0,  1.0,  0xFF00FF00, 32767,     0 },
-		{  1.0,  1.0,  1.0,  0xFF00FF00, 32767, 32767 },
-		{ -1.0,  1.0,  1.0,  0xFF00FF00,     0, 32767 },
+	// 	{ -1.0, -1.0,  1.0,  0xFF00FF00,     0,     0 },
+	// 	{  1.0, -1.0,  1.0,  0xFF00FF00, 32767,     0 },
+	// 	{  1.0,  1.0,  1.0,  0xFF00FF00, 32767, 32767 },
+	// 	{ -1.0,  1.0,  1.0,  0xFF00FF00,     0, 32767 },
 
-		{ -1.0, -1.0, -1.0,  0xFFFF0000,     0,     0 },
-		{ -1.0,  1.0, -1.0,  0xFFFF0000, 32767,     0 },
-		{ -1.0,  1.0,  1.0,  0xFFFF0000, 32767, 32767 },
-		{ -1.0, -1.0,  1.0,  0xFFFF0000,     0, 32767 },
+	// 	{ -1.0, -1.0, -1.0,  0xFFFF0000,     0,     0 },
+	// 	{ -1.0,  1.0, -1.0,  0xFFFF0000, 32767,     0 },
+	// 	{ -1.0,  1.0,  1.0,  0xFFFF0000, 32767, 32767 },
+	// 	{ -1.0, -1.0,  1.0,  0xFFFF0000,     0, 32767 },
 
-		{  1.0, -1.0, -1.0,  0xFFFF007F,     0,     0 },
-		{  1.0,  1.0, -1.0,  0xFFFF007F, 32767,     0 },
-		{  1.0,  1.0,  1.0,  0xFFFF007F, 32767, 32767 },
-		{  1.0, -1.0,  1.0,  0xFFFF007F,     0, 32767 },
+	// 	{  1.0, -1.0, -1.0,  0xFFFF007F,     0,     0 },
+	// 	{  1.0,  1.0, -1.0,  0xFFFF007F, 32767,     0 },
+	// 	{  1.0,  1.0,  1.0,  0xFFFF007F, 32767, 32767 },
+	// 	{  1.0, -1.0,  1.0,  0xFFFF007F,     0, 32767 },
 
-		{ -1.0, -1.0, -1.0,  0xFFFF7F00,     0,     0 },
-		{ -1.0, -1.0,  1.0,  0xFFFF7F00, 32767,     0 },
-		{  1.0, -1.0,  1.0,  0xFFFF7F00, 32767, 32767 },
-		{  1.0, -1.0, -1.0,  0xFFFF7F00,     0, 32767 },
+	// 	{ -1.0, -1.0, -1.0,  0xFFFF7F00,     0,     0 },
+	// 	{ -1.0, -1.0,  1.0,  0xFFFF7F00, 32767,     0 },
+	// 	{  1.0, -1.0,  1.0,  0xFFFF7F00, 32767, 32767 },
+	// 	{  1.0, -1.0, -1.0,  0xFFFF7F00,     0, 32767 },
 
-		{ -1.0,  1.0, -1.0,  0xFF007FFF,     0,     0 },
-		{ -1.0,  1.0,  1.0,  0xFF007FFF, 32767,     0 },
-		{  1.0,  1.0,  1.0,  0xFF007FFF, 32767, 32767 },
-		{  1.0,  1.0, -1.0,  0xFF007FFF,     0, 32767 },
-	}
-	state.bind.vertex_buffers[0] = sg.make_buffer({
-		data = { ptr = &vertices, size = size_of(vertices) },
-	})
+	// 	{ -1.0,  1.0, -1.0,  0xFF007FFF,     0,     0 },
+	// 	{ -1.0,  1.0,  1.0,  0xFF007FFF, 32767,     0 },
+	// 	{  1.0,  1.0,  1.0,  0xFF007FFF, 32767, 32767 },
+	// 	{  1.0,  1.0, -1.0,  0xFF007FFF,     0, 32767 },
+	// }
+	// state.bind.vertex_buffers[0] = sg.make_buffer({
+	// 	data = { ptr = &vertices, size = size_of(vertices) },
+	// })
 
 	// create an index buffer for the cube
-	indices := [?]u16 {
-		0, 1, 2,  0, 2, 3,
-		6, 5, 4,  7, 6, 4,
-		8, 9, 10,  8, 10, 11,
-		14, 13, 12,  15, 14, 12,
-		16, 17, 18,  16, 18, 19,
-		22, 21, 20,  23, 22, 20,
-	}
-	state.bind.index_buffer = sg.make_buffer({
-		usage = { index_buffer = true },
-		data = { ptr = &indices, size = size_of(indices) },
-	})
+	// indices := [?]u16 {
+	// 	0, 1, 2,  0, 2, 3,
+	// 	6, 5, 4,  7, 6, 4,
+	// 	8, 9, 10,  8, 10, 11,
+	// 	14, 13, 12,  15, 14, 12,
+	// 	16, 17, 18,  16, 18, 19,
+	// 	22, 21, 20,  23, 22, 20,
+	// }
+	// state.bind.index_buffer = sg.make_buffer({
+	// 	usage = { index_buffer = true },
+	// 	data = { ptr = &indices, size = size_of(indices) },
+	// })
 
+	//
+	// add sphere
+	// 
+
+	state.shape.pos = {0.0, 0.0, 0.0}
+	
+    buf := sshape.Buffer {
+        vertices = { buffer = { ptr = &vertices, size = size_of(vertices) } },
+        indices  = { buffer = { ptr = &indices, size = size_of(indices) } },
+    }
+
+	buf = sshape.build_sphere(buf, {
+        radius = 0.75,
+        slices = 36,
+        stacks = 20,
+        random_colors = true,
+    })
+    state.shape.draw = sshape.element_range(buf)
+
+	state.bind.vertex_buffers[0] = sg.make_buffer(sshape.vertex_buffer_desc(buf))
+	state.bind.index_buffer      = sg.make_buffer(sshape.index_buffer_desc(buf))
+
+
+
+	// load favicon
 	if img_data, img_data_ok := read_entire_file("assets/round_cat.png", context.temp_allocator); img_data_ok {
 		if img, img_err := png.load_from_bytes(img_data, allocator = context.temp_allocator); img_err == nil {
 			sg_img := sg.make_image({
@@ -157,27 +191,50 @@ init :: proc "c" () {
 	state.bind.samplers[SMP_smp] = sg.make_sampler({})
 
 	// shader and pipeline object
-	state.pip = sg.make_pipeline({
-		shader = sg.make_shader(texcube_shader_desc(sg.query_backend())),
-		layout = {
-			attrs = {
-				ATTR_texcube_pos = { format = .FLOAT3 },
-				ATTR_texcube_color0 = { format = .UBYTE4N },
-				ATTR_texcube_texcoord0 = { format = .SHORT2N },
-			},
-		},
-		index_type = .UINT16,
-		cull_mode = .BACK,
-		depth = {
-			compare = .LESS_EQUAL,
-			write_enabled = true,
-		},
-	})
+	// state.pip = sg.make_pipeline({
+	// 	shader = sg.make_shader(texcube_shader_desc(sg.query_backend())),
+	// 	layout = {
+	// 		attrs = {
+	//			ATTR_texcube_pos = { format = .FLOAT3 },
+	// 			ATTR_texcube_color0 = { format = .UBYTE4N },
+	// 			ATTR_texcube_texcoord0 = { format = .SHORT2N },
+	// 		},
+	// 	},
+	// 	index_type = .UINT16,
+	// 	cull_mode = .BACK,
+	// 	depth = {
+	// 		compare = .LESS_EQUAL,
+	// 		write_enabled = true,
+	// 	},
+	// })
+
+    // shader and pipeline object for sphere
+    state.pip = sg.make_pipeline({
+        shader = sg.make_shader(shapes_shader_desc(sg.query_backend())),
+        layout = {
+            buffers = {
+                0 = sshape.vertex_buffer_layout_state(),
+            },
+            attrs = {
+                ATTR_shapes_position = sshape.position_vertex_attr_state(),
+                ATTR_shapes_normal   = sshape.normal_vertex_attr_state(),
+                ATTR_shapes_texcoord = sshape.texcoord_vertex_attr_state(),
+                ATTR_shapes_color0   = sshape.color_vertex_attr_state(),
+            },
+        },
+        index_type = .UINT16,
+        cull_mode = .NONE,
+        depth = {
+            compare = .LESS_EQUAL,
+            write_enabled = true,
+        },
+    })
+
 
 	// default pass action, clear to blue-ish
 	state.pass_action = {
 		colors = {
-			0 = { load_action = .CLEAR, clear_value = { 0.41, 0.68, 0.83, 1 } },
+			0 = { load_action = .CLEAR, clear_value = { 0.11, 0.28, 0.53, 1 } },
 		},
 	}
 }
@@ -198,8 +255,8 @@ frame :: proc "c" () {
 	sg.apply_bindings(state.bind)
 	sg.apply_uniforms(UB_vs_params, { ptr = &vs_params, size = size_of(vs_params) })
 
-	// 36 is the number of indices
-	sg.draw(0, 36, 1)
+	// draw sphere
+	sg.draw(int(state.shape.draw.base_element), int(state.shape.draw.num_elements), 1)
 
 	sg.end_pass()
 	sg.commit()
