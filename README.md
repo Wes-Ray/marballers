@@ -1,9 +1,8 @@
-# Marballers
 
+# Marballers
 Simple web game using Odin + Sokol.
 
 # Build (Windows)
-
 Install emscripten and Odin (Sokol is embedded)
 
 ## Local
@@ -14,7 +13,6 @@ Requires WSL
 `.\deploy_to_server.ps1`
 
 # Dependencies
-
 Odin
 Sokol
 https://github.com/karl-zylinski/odin-sokol-web
