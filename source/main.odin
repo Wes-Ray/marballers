@@ -43,6 +43,8 @@ Vertex :: struct {
 	u, v: u16,
 }
 
+
+
 vertices: [6 * 1024]sshape.Vertex
 indices: [16 * 1024]u16
 
@@ -140,9 +142,25 @@ frame :: proc "c" () {
 	state.rx += 60.0 * dt
 	state.ry += 120.0 * dt
 
-	// vertex shader uniform with model-view-projection matrix
+	// 
+	// calculate world camera and world objects
+	//
+	// calculating mat4 of camera lens with 60deg FOV, 0.01 to 10.0 depth range
+	proj := linalg.matrix4_perspective(60.0 * linalg.RAD_PER_DEG, sapp.widthf() / sapp.heightf(), 0.01, 10.0)
+	// camera transform, transforms world to camera space
+	view := linalg.matrix4_look_at_f32({0.0, -1.5, -6.0}, {}, {0.0, 1.0, 0.0})
+	// combines to go from world to clip space
+	view_proj := proj * view
+
+	// applying rotations
+	rxm := linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
+	rym := linalg.matrix4_rotate_f32(state.ry * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+
+	model := rxm * rym
+
+	// sending params
 	vs_params := Vs_Params {
-		mvp = compute_mvp(state.rx, state.ry),
+		mvp = view_proj * model,
 	}
 
 	sg.begin_pass({ action = state.pass_action, swapchain = sglue.swapchain() })
@@ -171,19 +189,8 @@ cleanup :: proc "c" () {
 	}
 }
 
-compute_mvp :: proc (rx, ry: f32) -> Mat4 {
-	proj := linalg.matrix4_perspective(60.0 * linalg.RAD_PER_DEG, sapp.widthf() / sapp.heightf(), 0.01, 10.0)
-	view := linalg.matrix4_look_at_f32({0.0, -1.5, -6.0}, {}, {0.0, 1.0, 0.0})
-	view_proj := proj * view
-	rxm := linalg.matrix4_rotate_f32(rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
-	rym := linalg.matrix4_rotate_f32(ry * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
-	model := rxm * rym
-	return view_proj * model
-}
-
 // read and write files. Works with both desktop OS and also emscripten virtual
 // file system.
-
 @(require_results)
 read_entire_file :: proc(name: string, allocator := context.allocator, loc := #caller_location) -> (data: []byte, success: bool) {
 	when IS_WEB {
