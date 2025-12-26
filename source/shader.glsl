@@ -17,28 +17,54 @@ out vec4 color;
 
 void main() {
     gl_Position = mvp * position;
-    // if (draw_mode == 0.0) {
-    //     color = vec4((normal + 1.0) * 0.5, 1.0);
-    // }
-    // else if (draw_mode == 1.0) {
-    //     color = vec4(texcoord, 0.0, 1.0);
-    // }
-    // else {
-    //     color = color0;
-    // }
 
     vec3 N = normalize(normal);
-    //vec3 base = (N.x > 0.0) ? vec3(1.0, 0.2, 0.2) : vec3(0.2, 0.4, 1.0);
+    vec3 light_color = vec3(1.0, 1.0, 1.0);
 
+    // ambient lighting
+    float ambient_base = 0.05;
+    vec3 ambient = vec3(ambient_base, ambient_base, ambient_base);
+
+    //
+    // diffuse lighting
+    //
+    vec3 light_pos   = vec3(1.0, 1.0, 1.0);
+    float diffuse_strength = max(0.0, dot(light_pos, N));
+    vec3 diffuse = diffuse_strength * light_color;
+
+    //
+    // specular lighting
+    //
+    vec3 camera_pos = vec3(0.0, 0.0, 1.0);
+    vec3 view_pos = normalize(camera_pos);
+    vec3 reflect_pos = normalize(reflect(-light_pos, N));
+    float specular_strength = max(0.0, dot(view_pos, reflect_pos));
+    specular_strength = pow(specular_strength, 256.0);
+    vec3 specular = specular_strength * light_color;
+
+    //
+    // split base color in two regions based on normal
+    //
     vec3 color1 = vec3(0.9, 0.9, 0.9);
     vec3 color2 = vec3(0.2, 0.7, 0.2);
 
     vec3 base = (N.x > 0.0) ? color1 : color2;
+    // vec3 base = vec3(0.7, 0.7, 0.7);
 
-    color = vec4(base, 1.0);
+    // combine lighting
+    vec3 lighting = vec3(0.0, 0.0, 0.0);
+    lighting = ambient + diffuse + specular;
+
+    vec3 base_with_lighting = base * lighting;
+    color = vec4(base_with_lighting, 1.0);
 }
 @end
 
+
+//
+// all of this is just for sampling texture, 
+// leaving this now so the main.odin code compiles
+//
 @block fs_params
 uniform fs_params {
     vec3 light_dir;
