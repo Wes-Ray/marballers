@@ -5,7 +5,9 @@
 @vs vs
 layout(binding=0) uniform vs_params {
     float draw_mode;
-    mat4 mvp;
+    mat4 proj;
+    mat4 view;
+    mat4 model;
 };
 
 in vec4 position;
@@ -16,6 +18,7 @@ in vec4 color0;
 out vec4 color;
 
 void main() {
+    mat4 mvp = proj * view * model;
     gl_Position = mvp * position;
 
     vec3 N = normalize(normal);

@@ -150,7 +150,7 @@ frame :: proc "c" () {
 	// camera transform, transforms world to camera space
 	view := linalg.matrix4_look_at_f32({0.0, -1.5, -6.0}, {}, {0.0, 1.0, 0.0})
 	// combines to go from world to clip space
-	view_proj := proj * view
+	// view_proj := proj * view
 
 	// applying rotations
 	rxm := linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
@@ -160,7 +160,9 @@ frame :: proc "c" () {
 
 	// sending params
 	vs_params := Vs_Params {
-		mvp = view_proj * model,
+		proj = proj,
+		view = view,
+		model = model,
 	}
 
 	sg.begin_pass({ action = state.pass_action, swapchain = sglue.swapchain() })
