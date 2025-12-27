@@ -36,14 +36,14 @@ void main() {
     //
     // diffuse lighting
     //
-    vec3 light_dir = normalize(vec3(-.7, -1.0, -1.0));
+    vec3 light_dir = normalize(vec3(-.7, 1.0, -1.0));
     float diffuse_strength = max(0.0, dot(world_normal, light_dir));
     vec3 diffuse = diffuse_strength * light_color;
 
     //
     // specular lighting
     //
-    vec3 camera_pos = vec3(1.0, 1.0, 1.0);
+    vec3 camera_pos = vec3(1.0, -1.0, 0.2);
     vec3 camera_pos_normalized = normalize(camera_pos);
     vec3 reflect_pos = normalize(reflect(world_normal, -light_dir));
     float specular_strength = max(0.0, dot(camera_pos_normalized, reflect_pos));
