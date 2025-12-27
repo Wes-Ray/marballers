@@ -56,7 +56,7 @@ void main() {
     vec3 color1 = vec3(0.9, 0.9, 0.9);
     vec3 color2 = vec3(0.2, 0.7, 0.2);
 
-    vec3 base = (model_normal.x > 0.0) ? color1 : color2;
+    vec3 base = (model_normal.y > 0.0) ? color1 : color2;
     // vec3 base = vec3(0.7, 0.7, 0.7);
 
     // combine lighting
