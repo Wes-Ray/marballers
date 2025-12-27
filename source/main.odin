@@ -45,8 +45,10 @@ Vertex :: struct {
 
 
 
-vertices: [6 * 1024]sshape.Vertex
-indices: [16 * 1024]u16
+// vertices: [6 * 1024]sshape.Vertex
+// indices: [16 * 1024]u16
+vertices: [12 * 1024]sshape.Vertex
+indices: [32 * 1024]u16
 
 main :: proc() {
 	when IS_WEB {
@@ -96,8 +98,8 @@ init :: proc "c" () {
 
 	buf = sshape.build_sphere(buf, {
         radius = 0.75,
-        slices = 36,
-        stacks = 20,
+        slices = 72,
+        stacks = 40,
         random_colors = true,
     })
     state.shape.draw = sshape.element_range(buf)
