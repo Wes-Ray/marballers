@@ -18,10 +18,15 @@ in vec4 color0;
 out vec4 color;
 
 void main() {
-    mat4 mvp = proj * view * model;
-    gl_Position = mvp * position;
+    vec4 world_pos = model * position;
+    vec4 view_pos  = view  * world_pos;
+    gl_Position    = proj  * view_pos;
 
-    vec3 N = normalize(normal);
+    mat3 normal_mtx = mat3(model);
+    vec3 model_normal = normalize(normal);
+    vec3 world_normal = normalize(normal_mtx * normal);
+
+
     vec3 light_color = vec3(1.0, 1.0, 1.0);
 
     // ambient lighting
@@ -31,17 +36,17 @@ void main() {
     //
     // diffuse lighting
     //
-    vec3 light_pos   = vec3(1.0, 1.0, 1.0);
-    float diffuse_strength = max(0.0, dot(light_pos, N));
+    vec3 light_dir = normalize(vec3(-.7, -1.0, -1.0));
+    float diffuse_strength = max(0.0, dot(world_normal, light_dir));
     vec3 diffuse = diffuse_strength * light_color;
 
     //
     // specular lighting
     //
-    vec3 camera_pos = vec3(0.0, 0.0, 1.0);
-    vec3 view_pos = normalize(camera_pos);
-    vec3 reflect_pos = normalize(reflect(-light_pos, N));
-    float specular_strength = max(0.0, dot(view_pos, reflect_pos));
+    vec3 camera_pos = vec3(1.0, 1.0, 1.0);
+    vec3 camera_pos_normalized = normalize(camera_pos);
+    vec3 reflect_pos = normalize(reflect(world_normal, -light_dir));
+    float specular_strength = max(0.0, dot(camera_pos_normalized, reflect_pos));
     specular_strength = pow(specular_strength, 256.0);
     vec3 specular = specular_strength * light_color;
 
@@ -51,7 +56,7 @@ void main() {
     vec3 color1 = vec3(0.9, 0.9, 0.9);
     vec3 color2 = vec3(0.2, 0.7, 0.2);
 
-    vec3 base = (N.x > 0.0) ? color1 : color2;
+    vec3 base = (model_normal.x > 0.0) ? color1 : color2;
     // vec3 base = vec3(0.7, 0.7, 0.7);
 
     // combine lighting
