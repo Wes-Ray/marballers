@@ -229,7 +229,7 @@ frame :: proc "c" () {
 	}
 	sdtx.printf("MOUSE LOCK: %t\n", sapp.mouse_locked())
 
-	// input from state
+	// apply inputs from state (which is updated by events)
 	camera_rotation_input := Vec2{}
 	if sapp.mouse_locked() {
 		if state.input_mouse_left_down {
