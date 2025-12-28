@@ -43,6 +43,8 @@ state: struct {
 	input_left_mouse_down: bool,
 	input_left: bool,
 	input_right: bool,
+	input_up: bool,
+	input_down: bool,
 	camera_rotation: Vec2,
 }
 
@@ -181,6 +183,18 @@ event :: proc "c" (e: ^sapp.Event) {
 	} else {
 		state.input_right = false
 	}
+
+	if e.type == .KEY_DOWN && e.key_code == .W {
+		state.input_up = true
+	} else {
+		state.input_up = false
+	}
+
+	if e.type == .KEY_DOWN && e.key_code == .S {
+		state.input_down = true
+	} else {
+		state.input_down = false
+	}
 }
 
 frame :: proc "c" () {
@@ -202,73 +216,91 @@ frame :: proc "c" () {
 			sdtx.printf("left mouse up\n")
 		}
 
+		sdtx.printf("INPUT: ")
 		if state.input_left {
-			sdtx.printf("left: TRUE\n")
+			sdtx.printf(" left")
 			camera_rotation_input.x = 1.0
-		} else {
-			sdtx.printf("left: false\n")
-		}
+		} 
 
 		if state.input_right {
+			sdtx.printf(" right")
 			camera_rotation_input.x = -1.0
-			sdtx.printf("right: TRUE\n")
-		} else {
-			sdtx.printf("right: false\n")
+		} 
+
+		if state.input_up {
+			sdtx.printf(" up")
+			camera_rotation_input.y = 1.0
+		} 
+
+		if state.input_down {
+			sdtx.printf(" down")
+			camera_rotation_input.y = -1.0
 		}
+		sdtx.printf("\n")
 	}
-	// update camera rotation
+	// update camera rotation state (not the actual camera view)
 	{
 		sdtx.printf("camera_rotation_input: (%f, %f)\n", camera_rotation_input.x, camera_rotation_input.y)
-		state.camera_rotation += camera_rotation_input
+		state.camera_rotation += camera_rotation_input  // TODO: add dt
+		if state.camera_rotation.x >= 360.0 {
+			state.camera_rotation.x = 0.0
+		}
+		if state.camera_rotation.x <= -360.0 {
+			state.camera_rotation.x = 0.0
+		}
+		state.camera_rotation.y = clamp(state.camera_rotation.y, -80.0, 80.0)
 		sdtx.printf("camera_rotation: (%f, %f)\n", state.camera_rotation.x, state.camera_rotation.y)
 	}
 
+	// applying rotation to object
 	state.rx += 60.0 * dt
 	state.ry += 120.0 * dt
 
 	// 
-	// calculate world camera and world objects
+	// applying transforms
 	//
-	// calculating mat4 of camera lens with 60deg FOV, 0.01 to 10.0 depth range
-	proj := linalg.matrix4_perspective(60.0 * linalg.RAD_PER_DEG, sapp.widthf() / sapp.heightf(), 0.01, 10.0)
-	// camera transform, transforms world to camera space
-	view := linalg.matrix4_look_at_f32({0.0, -1.5, -6.0}, {}, {0.0, 1.0, 0.0})
+	{
+		// calculating mat4 of camera lens with 60deg FOV, 0.01 to 10.0 depth range
+		proj := linalg.matrix4_perspective(60.0 * linalg.RAD_PER_DEG, sapp.widthf() / sapp.heightf(), 0.01, 10.0)
+		// camera transform, transforms world to camera space
+		view := linalg.matrix4_look_at_f32({0.0, -1.5, -6.0}, {}, {0.0, 1.0, 0.0})
 
-	// spin camera left/right
-	// view = view * linalg.matrix4_rotate_f32(state.camera_rotation.x * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
-	// spin camera up/down
-	view = view * linalg.matrix4_rotate_f32(state.camera_rotation.x * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
+		// spin camera left/right
+		view = view * linalg.matrix4_rotate_f32(state.camera_rotation.x * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+		// spin camera up/down
+		view = view * linalg.matrix4_rotate_f32(state.camera_rotation.y * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
 
-	// applying rotations to sphere
-	// rxm := linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
-	// rym := linalg.matrix4_rotate_f32(state.ry * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
-	rxm := linalg.matrix4_rotate_f32(1.0 * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
-	rym := linalg.matrix4_rotate_f32(1.0 * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+		// applying rotations to sphere
+		// rxm := linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
+		// rym := linalg.matrix4_rotate_f32(state.ry * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+		rxm := linalg.matrix4_rotate_f32(1.0 * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
+		rym := linalg.matrix4_rotate_f32(1.0 * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
 
-	model := rxm * rym
-	// model := Mat4{}
+		model := rxm * rym
+		// model := Mat4{}
 
-	// sending params
-	vs_params := Vs_Params {
-		proj = proj,
-		view = view,
-		model = model,
+		// sending params
+		vs_params := Vs_Params {
+			proj = proj,
+			view = view,
+			model = model,
+		}
+
+		sg.begin_pass({ action = state.pass_action, swapchain = sglue.swapchain() })
+
+		// 3d draw
+		sg.apply_pipeline(state.pip)
+		sg.apply_bindings(state.bind)
+		sg.apply_uniforms(UB_vs_params, { ptr = &vs_params, size = size_of(vs_params) })
+
+		// draw sphere
+		sg.draw(int(state.shape.draw.base_element), int(state.shape.draw.num_elements), 1)
+
+		// commit graphics and debug text
+		sdtx.draw()
+		sg.end_pass()
+		sg.commit()
 	}
-
-	sg.begin_pass({ action = state.pass_action, swapchain = sglue.swapchain() })
-
-	// 3d draw
-	sg.apply_pipeline(state.pip)
-	sg.apply_bindings(state.bind)
-	sg.apply_uniforms(UB_vs_params, { ptr = &vs_params, size = size_of(vs_params) })
-
-	// draw sphere
-	sg.draw(int(state.shape.draw.base_element), int(state.shape.draw.num_elements), 1)
-
-	// commit graphics and debug text
-	sdtx.draw()
-	sg.end_pass()
-	sg.commit()
 
 	free_all(context.temp_allocator)
 }
