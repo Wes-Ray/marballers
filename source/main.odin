@@ -176,7 +176,11 @@ event :: proc "c" (e: ^sapp.Event) {
 	//
 	if e.type == .MOUSE_DOWN && e.mouse_button == .LEFT {
 		state.input_mouse_left_down = true
-	} 
+	}
+
+	if e.type == .MOUSE_UP && e.mouse_button == .LEFT {
+        state.input_mouse_left_down = false
+    }
 
 	if e.type == .MOUSE_MOVE {
 		state.input_mouse_dx = e.mouse_dx
@@ -186,7 +190,8 @@ event :: proc "c" (e: ^sapp.Event) {
 	//
 	// keys
 	//
-	// TODO: refactor to wait until key up?
+	// TODO: refactor to wait until key up? can maybe use .KEY_UP but need to figure out why
+	// it is already setting to false with each frame
 	if e.type == .KEY_DOWN && e.key_code == .A {
 		state.input_left = true
 	}
@@ -230,6 +235,9 @@ frame :: proc "c" () {
 		sdtx.printf("mouse move: (%v, %v)\n", state.input_mouse_dx, state.input_mouse_dy)
 		camera_rotation_input.x = state.input_mouse_dx * MOUSE_SENSITIVITY * MOUSE_SENSITIVITY_MULTIPLIER
 		camera_rotation_input.y = state.input_mouse_dy * MOUSE_SENSITIVITY * MOUSE_SENSITIVITY_MULTIPLIER
+
+		state.input_mouse_dx = 0.0
+    	state.input_mouse_dy = 0.0
 
 
 		// sdtx.printf("INPUT:")
