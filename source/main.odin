@@ -29,6 +29,9 @@ FONT_C64   :: 1
 FONT_ORIC  :: 2
 NUM_FONTS  :: 3
 
+MOUSE_SENSITIVITY :f32 = 1.0
+MOUSE_SENSITIVITY_MULTIPLIER :f32 = 0.4
+
 Shape :: struct {
 	pos: Vec3,
 	draw: sshape.Element_Range,
@@ -40,7 +43,9 @@ state: struct {
 	bind: sg.Bindings,
 	shape: Shape,
 	rx, ry: f32,
-	input_left_mouse_down: bool,
+	input_mouse_left_down: bool,
+	input_mouse_dx: f32,
+	input_mouse_dy: f32,
 	input_left: bool,
 	input_right: bool,
 	input_up: bool,
@@ -166,35 +171,40 @@ init :: proc "c" () {
 event :: proc "c" (e: ^sapp.Event) {
 	context = custom_context
 
+	//
+	// mouse
+	//
 	if e.type == .MOUSE_DOWN && e.mouse_button == .LEFT {
-		state.input_left_mouse_down = true
-	} else {
-		state.input_left_mouse_down = false
-	}
+		state.input_mouse_left_down = true
+	} 
 
+	if e.type == .MOUSE_MOVE {
+		state.input_mouse_dx = e.mouse_dx
+		state.input_mouse_dy = e.mouse_dy
+	} 
+
+	//
+	// keys
+	//
+	// TODO: refactor to wait until key up?
 	if e.type == .KEY_DOWN && e.key_code == .A {
 		state.input_left = true
-	} else {
-		state.input_left = false
 	}
+	// } else {
+	// 	state.input_left = false
+	// }
 
 	if e.type == .KEY_DOWN && e.key_code == .D {
 		state.input_right = true
-	} else {
-		state.input_right = false
 	}
 
 	if e.type == .KEY_DOWN && e.key_code == .W {
 		state.input_up = true
-	} else {
-		state.input_up = false
 	}
 
 	if e.type == .KEY_DOWN && e.key_code == .S {
 		state.input_down = true
-	} else {
-		state.input_down = false
-	}
+	} 
 }
 
 frame :: proc "c" () {
@@ -210,38 +220,46 @@ frame :: proc "c" () {
 	//
 	camera_rotation_input := Vec2{}
 	{
-		if state.input_left_mouse_down {
+		if state.input_mouse_left_down {
 			sdtx.printf("left mouse DOWN\n")
 		} else {
 			sdtx.printf("left mouse up\n")
 		}
 
-		sdtx.printf("INPUT: ")
-		if state.input_left {
-			sdtx.printf(" left")
-			camera_rotation_input.x = 1.0
-		} 
+		// mouse movement input
+		sdtx.printf("mouse move: (%v, %v)\n", state.input_mouse_dx, state.input_mouse_dy)
+		camera_rotation_input.x = state.input_mouse_dx * MOUSE_SENSITIVITY * MOUSE_SENSITIVITY_MULTIPLIER
+		camera_rotation_input.y = state.input_mouse_dy * MOUSE_SENSITIVITY * MOUSE_SENSITIVITY_MULTIPLIER
 
-		if state.input_right {
-			sdtx.printf(" right")
-			camera_rotation_input.x = -1.0
-		} 
 
-		if state.input_up {
-			sdtx.printf(" up")
-			camera_rotation_input.y = 1.0
-		} 
+		// sdtx.printf("INPUT:")
+		// if state.input_left {
+		// 	sdtx.printf(" left")
+		// 	camera_rotation_input.x = 1.0
+		// } 
 
-		if state.input_down {
-			sdtx.printf(" down")
-			camera_rotation_input.y = -1.0
-		}
-		sdtx.printf("\n")
+		// if state.input_right {
+		// 	sdtx.printf(" right")
+		// 	camera_rotation_input.x = -1.0
+		// } 
+
+		// if state.input_up {
+		// 	sdtx.printf(" up")
+		// 	camera_rotation_input.y = 1.0
+		// } 
+
+		// if state.input_down {
+		// 	sdtx.printf(" down")
+		// 	camera_rotation_input.y = -1.0
+		// }
+		// sdtx.printf("\n")
 	}
 	// update camera rotation state (not the actual camera view)
 	{
 		sdtx.printf("camera_rotation_input: (%f, %f)\n", camera_rotation_input.x, camera_rotation_input.y)
-		state.camera_rotation += camera_rotation_input  // TODO: add dt
+		// TODO: add dt
+		state.camera_rotation.x += camera_rotation_input.x
+		state.camera_rotation.y -= camera_rotation_input.y
 		if state.camera_rotation.x >= 360.0 {
 			state.camera_rotation.x = 0.0
 		}
