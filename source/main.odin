@@ -29,8 +29,11 @@ FONT_C64   :: 1
 FONT_ORIC  :: 2
 NUM_FONTS  :: 3
 
-MOUSE_SENSITIVITY :f32 = 1.0
-MOUSE_SENSITIVITY_MULTIPLIER :f32 = 0.4
+MOUSE_SENSITIVITY: f32 = 1.0
+MOUSE_SENSITIVITY_MULTIPLIER: f32 = 0.4
+MOUSE_PITCH_MAX_ANGLE: f32 = 35.0
+
+WORLD_UP :: Vec3{0.0, 1.0, 0.0}
 
 Shape :: struct {
 	pos: Vec3,
@@ -50,7 +53,9 @@ state: struct {
 	input_right: bool,
 	input_up: bool,
 	input_down: bool,
-	camera_rotation: Vec2,
+	// camera_rotation: Vec2,
+	cam_yaw: f32,
+	cam_pitch: f32,
 }
 
 custom_context: runtime.Context
@@ -87,7 +92,7 @@ main :: proc() {
 		height = 720,
 		sample_count = 4,
 		window_title = IS_WEB ? "Marballers" : "Non-Web Marballers",
-		icon = { sokol_default = true },
+		icon = { sokol_default = true },  // favicon
 		logger = { func = slog.func },
 		html5_update_document_title = true,
 	})
@@ -171,45 +176,45 @@ init :: proc "c" () {
 event :: proc "c" (e: ^sapp.Event) {
 	context = custom_context
 
-	//
 	// mouse
-	//
-	if e.type == .MOUSE_DOWN && e.mouse_button == .LEFT {
-		state.input_mouse_left_down = true
+	{
+		if e.type == .MOUSE_DOWN && e.mouse_button == .LEFT {
+			state.input_mouse_left_down = true
+		}
+
+		if e.type == .MOUSE_UP && e.mouse_button == .LEFT {
+			state.input_mouse_left_down = false
+		}
+
+		if e.type == .MOUSE_MOVE {
+			state.input_mouse_dx = e.mouse_dx
+			state.input_mouse_dy = e.mouse_dy
+		}
 	}
 
-	if e.type == .MOUSE_UP && e.mouse_button == .LEFT {
-        state.input_mouse_left_down = false
-    }
-
-	if e.type == .MOUSE_MOVE {
-		state.input_mouse_dx = e.mouse_dx
-		state.input_mouse_dy = e.mouse_dy
-	} 
-
-	//
 	// keys
-	//
-	// TODO: refactor to wait until key up? can maybe use .KEY_UP but need to figure out why
-	// it is already setting to false with each frame
-	if e.type == .KEY_DOWN && e.key_code == .A {
-		state.input_left = true
-	}
-	// } else {
-	// 	state.input_left = false
-	// }
+	{
+		// TODO: refactor to wait until key up? can maybe use .KEY_UP but need to figure out why
+		// it is already setting to false with each frame
+		if e.type == .KEY_DOWN && e.key_code == .A {
+			state.input_left = true
+		}
+		// } else {
+		// 	state.input_left = false
+		// }
 
-	if e.type == .KEY_DOWN && e.key_code == .D {
-		state.input_right = true
-	}
+		if e.type == .KEY_DOWN && e.key_code == .D {
+			state.input_right = true
+		}
 
-	if e.type == .KEY_DOWN && e.key_code == .W {
-		state.input_up = true
-	}
+		if e.type == .KEY_DOWN && e.key_code == .W {
+			state.input_up = true
+		}
 
-	if e.type == .KEY_DOWN && e.key_code == .S {
-		state.input_down = true
-	} 
+		if e.type == .KEY_DOWN && e.key_code == .S {
+			state.input_down = true
+		}
+	}
 }
 
 frame :: proc "c" () {
@@ -220,9 +225,7 @@ frame :: proc "c" () {
 	// debug text
 	sdtx.printf("DEBUG\n")
 
-	//
 	// input from state
-	//
 	camera_rotation_input := Vec2{}
 	{
 		if state.input_mouse_left_down {
@@ -262,49 +265,56 @@ frame :: proc "c" () {
 		// }
 		// sdtx.printf("\n")
 	}
+
 	// update camera rotation state (not the actual camera view)
 	{
 		sdtx.printf("camera_rotation_input: (%f, %f)\n", camera_rotation_input.x, camera_rotation_input.y)
 		// TODO: add dt
-		state.camera_rotation.x += camera_rotation_input.x
-		state.camera_rotation.y -= camera_rotation_input.y
-		if state.camera_rotation.x >= 360.0 {
-			state.camera_rotation.x = 0.0
+		state.cam_yaw += camera_rotation_input.x
+		state.cam_pitch -= camera_rotation_input.y
+		if state.cam_yaw >= 360.0 {
+			state.cam_yaw = 0.0
 		}
-		if state.camera_rotation.x <= -360.0 {
-			state.camera_rotation.x = 0.0
+		if state.cam_yaw <= -360.0 {
+			state.cam_yaw = 0.0
 		}
-		state.camera_rotation.y = clamp(state.camera_rotation.y, -80.0, 80.0)
-		sdtx.printf("camera_rotation: (%f, %f)\n", state.camera_rotation.x, state.camera_rotation.y)
+		state.cam_pitch = clamp(state.cam_pitch, -MOUSE_PITCH_MAX_ANGLE, MOUSE_PITCH_MAX_ANGLE)
+		sdtx.printf("roll, pitch: (%f, %f)\n", state.cam_yaw, state.cam_pitch)
 	}
 
 	// applying rotation to object
 	state.rx += 60.0 * dt
 	state.ry += 120.0 * dt
 
-	// 
-	// applying transforms
-	//
+	// camera transforms
+	proj: Mat4
+	view: Mat4
 	{
 		// calculating mat4 of camera lens with 60deg FOV, 0.01 to 10.0 depth range
-		proj := linalg.matrix4_perspective(60.0 * linalg.RAD_PER_DEG, sapp.widthf() / sapp.heightf(), 0.01, 10.0)
+		proj = linalg.matrix4_perspective(60.0 * linalg.RAD_PER_DEG, sapp.widthf() / sapp.heightf(), 0.01, 10.0)
 		// camera transform, transforms world to camera space
-		view := linalg.matrix4_look_at_f32({0.0, -1.5, -6.0}, {}, {0.0, 1.0, 0.0})
+		view = linalg.matrix4_look_at_f32({0.0, -1.5, -6.0}, {}, WORLD_UP)
 
 		// spin camera left/right
-		view = view * linalg.matrix4_rotate_f32(state.camera_rotation.x * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+		view = view * linalg.matrix4_rotate_f32(state.cam_yaw * linalg.RAD_PER_DEG, WORLD_UP)
 		// spin camera up/down
-		view = view * linalg.matrix4_rotate_f32(state.camera_rotation.y * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
+		view = view * linalg.matrix4_rotate_f32(state.cam_pitch * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
+	}
 
+	// world transforms
+	model: Mat4
+	{
 		// applying rotations to sphere
 		// rxm := linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
 		// rym := linalg.matrix4_rotate_f32(state.ry * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
 		rxm := linalg.matrix4_rotate_f32(1.0 * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
 		rym := linalg.matrix4_rotate_f32(1.0 * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
-
-		model := rxm * rym
+		model = rxm * rym
 		// model := Mat4{}
+	}
 
+	// send gfx to gpu, apply and end frame
+	{
 		// sending params
 		vs_params := Vs_Params {
 			proj = proj,
