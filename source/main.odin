@@ -39,6 +39,9 @@ state: struct {
 	bind: sg.Bindings,
 	shape: Shape,
 	rx, ry: f32,
+	input_left_mouse_down: bool,
+	input_left: bool,
+	input_right: bool,
 }
 
 custom_context: runtime.Context
@@ -49,10 +52,6 @@ Vertex :: struct {
 	u, v: u16,
 }
 
-
-
-// vertices: [6 * 1024]sshape.Vertex
-// indices: [16 * 1024]u16
 vertices: [12 * 1024]sshape.Vertex
 indices: [32 * 1024]u16
 
@@ -73,6 +72,7 @@ main :: proc() {
 	sapp.run({
 		init_cb = init,
 		frame_cb = frame,
+		event_cb = event,
 		cleanup_cb = cleanup,
 		width = 1280,
 		height = 720,
@@ -92,9 +92,6 @@ init :: proc "c" () {
         logger = { func = slog.func },
     })
 
-	_ = sdtx.Context_Desc
-
-	// if this is commented out it makes a black screen
     sdtx.setup({
         fonts = {
             FONT_KC854 = sdtx.font_kc854(),
@@ -103,6 +100,11 @@ init :: proc "c" () {
         },
         logger = { func = slog.func },
     })
+
+	sdtx.canvas(sapp.widthf() * 0.5, sapp.heightf() * 0.5)
+	sdtx.origin(1.0, 3.0)
+	sdtx.font(FONT_KC854)
+	sdtx.color3f(1, 1, 1)
 
 	//
 	// add sphere
@@ -157,13 +159,57 @@ init :: proc "c" () {
 	}
 }
 
+event :: proc "c" (e: ^sapp.Event) {
+	context = custom_context
+
+	if e.type == .MOUSE_DOWN && e.mouse_button == .LEFT {
+		state.input_left_mouse_down = true
+	} else {
+		state.input_left_mouse_down = false
+	}
+
+	if e.type == .KEY_DOWN && e.key_code == .A {
+		state.input_left = true
+	} else {
+		state.input_left = false
+	}
+
+	if e.type == .KEY_DOWN && e.key_code == .D {
+		state.input_right = true
+	} else {
+		state.input_right = false
+	}
+}
+
 frame :: proc "c" () {
 	context = custom_context
 	dt := f32(sapp.frame_duration())
 
+
+	// debug text
+	sdtx.printf("DEBUG\n")
+
 	//
-	// get input
+	// input from state
 	//
+
+	if state.input_left_mouse_down {
+		sdtx.printf("left mouse DOWN\n")
+	} else {
+		sdtx.printf("left mouse up\n")
+	}
+
+	if state.input_left {
+		sdtx.printf("left: TRUE\n")
+	} else {
+		sdtx.printf("left: false\n")
+	}
+
+	if state.input_right {
+		sdtx.printf("right: TRUE\n")
+	} else {
+		sdtx.printf("right: false\n")
+	}
 
 	state.rx += 60.0 * dt
 	state.ry += 120.0 * dt
@@ -205,14 +251,8 @@ frame :: proc "c" () {
 	// draw sphere
 	sg.draw(int(state.shape.draw.base_element), int(state.shape.draw.num_elements), 1)
 
-	// debug text draw
-	sdtx.canvas(sapp.widthf() * 0.5, sapp.heightf() * 0.5)
-	sdtx.origin(3.0, 3.0)
-	sdtx.font(FONT_KC854)
-	sdtx.color3f(1, 1, 1)
-	sdtx.printf("Hello World\n")
+	// commit graphics and debug text
 	sdtx.draw()
-
 	sg.end_pass()
 	sg.commit()
 
@@ -221,6 +261,8 @@ frame :: proc "c" () {
 
 cleanup :: proc "c" () {
 	context = custom_context
+
+	sdtx.shutdown()
 	sg.shutdown()
 
 	// This is "the end of the program": sokol is shutting down. When on web
