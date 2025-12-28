@@ -31,7 +31,7 @@ NUM_FONTS  :: 3
 
 MOUSE_SENSITIVITY: f32 = 1.0
 MOUSE_SENSITIVITY_MULTIPLIER: f32 = 0.4
-MOUSE_PITCH_MAX_ANGLE: f32 = 80.0
+MOUSE_PITCH_MAX_ANGLE: f32 = 55.0
 
 WORLD_UP :: Vec3{0.0, 1.0, 0.0}
 
@@ -221,13 +221,17 @@ frame :: proc "c" () {
 	context = custom_context
 	dt := f32(sapp.frame_duration())
 
-
 	// debug text
 	sdtx.printf("DEBUG\n")
 
+	if !sapp.mouse_locked() {
+		sapp.lock_mouse(true)
+	}
+	sdtx.printf("MOUSE LOCK: %t\n", sapp.mouse_locked())
+
 	// input from state
 	camera_rotation_input := Vec2{}
-	{
+	if sapp.mouse_locked() {
 		if state.input_mouse_left_down {
 			sdtx.printf("left mouse DOWN\n")
 		} else {
@@ -245,12 +249,14 @@ frame :: proc "c" () {
 		// sdtx.printf("INPUT:")
 		// if state.input_left {
 		// 	sdtx.printf(" left")
-		// 	camera_rotation_input.x = 1.0
+		// 	// camera_rotation_input.x = 1.0
+		// 	sapp.lock_mouse(true)
 		// } 
 
 		// if state.input_right {
 		// 	sdtx.printf(" right")
-		// 	camera_rotation_input.x = -1.0
+		// 	sapp.lock_mouse(false)
+		// 	// camera_rotation_input.x = -1.0
 		// } 
 
 		// if state.input_up {
