@@ -20,6 +20,7 @@ _ :: os
 IS_WEB :: ODIN_ARCH == .wasm32 || ODIN_ARCH == .wasm64p32
 Mat4 :: matrix[4,4]f32
 Vec3 :: [3]f32
+Vec2 :: [2]f32
 
 SMP_smp :: 0
 
@@ -42,6 +43,7 @@ state: struct {
 	input_left_mouse_down: bool,
 	input_left: bool,
 	input_right: bool,
+	camera_rotation: Vec2,
 }
 
 custom_context: runtime.Context
@@ -192,23 +194,33 @@ frame :: proc "c" () {
 	//
 	// input from state
 	//
+	camera_rotation_input := Vec2{}
+	{
+		if state.input_left_mouse_down {
+			sdtx.printf("left mouse DOWN\n")
+		} else {
+			sdtx.printf("left mouse up\n")
+		}
 
-	if state.input_left_mouse_down {
-		sdtx.printf("left mouse DOWN\n")
-	} else {
-		sdtx.printf("left mouse up\n")
+		if state.input_left {
+			sdtx.printf("left: TRUE\n")
+			camera_rotation_input.x = 1.0
+		} else {
+			sdtx.printf("left: false\n")
+		}
+
+		if state.input_right {
+			camera_rotation_input.x = -1.0
+			sdtx.printf("right: TRUE\n")
+		} else {
+			sdtx.printf("right: false\n")
+		}
 	}
-
-	if state.input_left {
-		sdtx.printf("left: TRUE\n")
-	} else {
-		sdtx.printf("left: false\n")
-	}
-
-	if state.input_right {
-		sdtx.printf("right: TRUE\n")
-	} else {
-		sdtx.printf("right: false\n")
+	// update camera rotation
+	{
+		sdtx.printf("camera_rotation_input: (%f, %f)\n", camera_rotation_input.x, camera_rotation_input.y)
+		state.camera_rotation += camera_rotation_input
+		sdtx.printf("camera_rotation: (%f, %f)\n", state.camera_rotation.x, state.camera_rotation.y)
 	}
 
 	state.rx += 60.0 * dt
@@ -222,8 +234,10 @@ frame :: proc "c" () {
 	// camera transform, transforms world to camera space
 	view := linalg.matrix4_look_at_f32({0.0, -1.5, -6.0}, {}, {0.0, 1.0, 0.0})
 
-	// spin camera
-	// view = view * linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+	// spin camera left/right
+	// view = view * linalg.matrix4_rotate_f32(state.camera_rotation.x * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+	// spin camera up/down
+	view = view * linalg.matrix4_rotate_f32(state.camera_rotation.x * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
 
 	// applying rotations to sphere
 	// rxm := linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
