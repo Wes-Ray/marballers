@@ -25,7 +25,7 @@ copy %ODIN_PATH%\core\sys\wasm\js\odin.js %OUT_DIR% > nul
 
 :: Note how we link in the Sokol libs here. The Sokol bindings just link to
 :: "env.o", which is the WASM environment.
-set files=%OUT_DIR%\game.wasm.o source\sokol\app\sokol_app_wasm_gl_release.a source\sokol\glue\sokol_glue_wasm_gl_release.a source\sokol\gfx\sokol_gfx_wasm_gl_release.a source\sokol\shape\sokol_shape_wasm_gl_release.a source\sokol\log\sokol_log_wasm_gl_release.a source\sokol\gl\sokol_gl_wasm_gl_release.a
+set files=%OUT_DIR%\game.wasm.o source\sokol\app\sokol_app_wasm_gl_release.a source\sokol\glue\sokol_glue_wasm_gl_release.a source\sokol\gfx\sokol_gfx_wasm_gl_release.a source\sokol\shape\sokol_shape_wasm_gl_release.a source\sokol\log\sokol_log_wasm_gl_release.a source\sokol\gl\sokol_gl_wasm_gl_release.a source\sokol\debugtext\sokol_debugtext_wasm_gl_release.a
 
 :: index_template.html contains the javascript code that starts the program.
 set flags=-sWASM_BIGINT -sWARN_ON_UNDEFINED_SYMBOLS=0 -sMAX_WEBGL_VERSION=2 -sASSERTIONS --shell-file source\web\index_template.html --preload-file assets

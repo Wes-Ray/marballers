@@ -7,6 +7,7 @@ import "core:math/linalg"
 import "core:os"
 // import "core:slice"
 import "web"
+import sdtx "sokol/debugtext"
 import sapp "sokol/app"
 import sg "sokol/gfx"
 import sglue "sokol/glue"
@@ -21,6 +22,11 @@ Mat4 :: matrix[4,4]f32
 Vec3 :: [3]f32
 
 SMP_smp :: 0
+
+FONT_KC854 :: 0
+FONT_C64   :: 1
+FONT_ORIC  :: 2
+NUM_FONTS  :: 3
 
 Shape :: struct {
 	pos: Vec3,
@@ -80,10 +86,23 @@ main :: proc() {
 
 init :: proc "c" () {
 	context = custom_context
+
 	sg.setup({
-		environment = sglue.environment(),
-		logger = { func = slog.func },
-	})
+        environment = sglue.environment(),
+        logger = { func = slog.func },
+    })
+
+	_ = sdtx.Context_Desc
+
+	// if this is commented out it makes a black screen
+    sdtx.setup({
+        fonts = {
+            FONT_KC854 = sdtx.font_kc854(),
+            FONT_C64 = sdtx.font_c64(),
+            FONT_ORIC = sdtx.font_oric(),
+        },
+        logger = { func = slog.func },
+    })
 
 	//
 	// add sphere
@@ -141,6 +160,11 @@ init :: proc "c" () {
 frame :: proc "c" () {
 	context = custom_context
 	dt := f32(sapp.frame_duration())
+
+	//
+	// get input
+	//
+
 	state.rx += 60.0 * dt
 	state.ry += 120.0 * dt
 
@@ -151,14 +175,18 @@ frame :: proc "c" () {
 	proj := linalg.matrix4_perspective(60.0 * linalg.RAD_PER_DEG, sapp.widthf() / sapp.heightf(), 0.01, 10.0)
 	// camera transform, transforms world to camera space
 	view := linalg.matrix4_look_at_f32({0.0, -1.5, -6.0}, {}, {0.0, 1.0, 0.0})
-	// combines to go from world to clip space
-	// view_proj := proj * view
 
-	// applying rotations
-	rxm := linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
-	rym := linalg.matrix4_rotate_f32(state.ry * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+	// spin camera
+	// view = view * linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+
+	// applying rotations to sphere
+	// rxm := linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
+	// rym := linalg.matrix4_rotate_f32(state.ry * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+	rxm := linalg.matrix4_rotate_f32(1.0 * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
+	rym := linalg.matrix4_rotate_f32(1.0 * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
 
 	model := rxm * rym
+	// model := Mat4{}
 
 	// sending params
 	vs_params := Vs_Params {
@@ -168,12 +196,22 @@ frame :: proc "c" () {
 	}
 
 	sg.begin_pass({ action = state.pass_action, swapchain = sglue.swapchain() })
+
+	// 3d draw
 	sg.apply_pipeline(state.pip)
 	sg.apply_bindings(state.bind)
 	sg.apply_uniforms(UB_vs_params, { ptr = &vs_params, size = size_of(vs_params) })
 
 	// draw sphere
 	sg.draw(int(state.shape.draw.base_element), int(state.shape.draw.num_elements), 1)
+
+	// debug text draw
+	sdtx.canvas(sapp.widthf() * 0.5, sapp.heightf() * 0.5)
+	sdtx.origin(3.0, 3.0)
+	sdtx.font(FONT_KC854)
+	sdtx.color3f(1, 1, 1)
+	sdtx.printf("Hello World\n")
+	sdtx.draw()
 
 	sg.end_pass()
 	sg.commit()
