@@ -31,7 +31,7 @@ NUM_FONTS  :: 3
 
 MOUSE_SENSITIVITY: f32 = 1.0
 MOUSE_SENSITIVITY_MULTIPLIER: f32 = 0.4
-MOUSE_PITCH_MAX_ANGLE: f32 = 35.0
+MOUSE_PITCH_MAX_ANGLE: f32 = 80.0
 
 WORLD_UP :: Vec3{0.0, 1.0, 0.0}
 
@@ -54,8 +54,8 @@ state: struct {
 	input_up: bool,
 	input_down: bool,
 	// camera_rotation: Vec2,
-	cam_yaw: f32,
-	cam_pitch: f32,
+	camera_yaw: f32,
+	camera_pitch: f32,
 }
 
 custom_context: runtime.Context
@@ -242,7 +242,6 @@ frame :: proc "c" () {
 		state.input_mouse_dx = 0.0
     	state.input_mouse_dy = 0.0
 
-
 		// sdtx.printf("INPUT:")
 		// if state.input_left {
 		// 	sdtx.printf(" left")
@@ -270,21 +269,17 @@ frame :: proc "c" () {
 	{
 		sdtx.printf("camera_rotation_input: (%f, %f)\n", camera_rotation_input.x, camera_rotation_input.y)
 		// TODO: add dt
-		state.cam_yaw += camera_rotation_input.x
-		state.cam_pitch -= camera_rotation_input.y
-		if state.cam_yaw >= 360.0 {
-			state.cam_yaw = 0.0
+		state.camera_yaw += camera_rotation_input.x
+		state.camera_pitch -= camera_rotation_input.y
+		if state.camera_yaw >= 360.0 {
+			state.camera_yaw = 0.0
 		}
-		if state.cam_yaw <= -360.0 {
-			state.cam_yaw = 0.0
+		if state.camera_yaw <= -360.0 {
+			state.camera_yaw = 0.0
 		}
-		state.cam_pitch = clamp(state.cam_pitch, -MOUSE_PITCH_MAX_ANGLE, MOUSE_PITCH_MAX_ANGLE)
-		sdtx.printf("roll, pitch: (%f, %f)\n", state.cam_yaw, state.cam_pitch)
+		state.camera_pitch = clamp(state.camera_pitch, -MOUSE_PITCH_MAX_ANGLE, MOUSE_PITCH_MAX_ANGLE)
+		sdtx.printf("roll, pitch: (%f, %f)\n", state.camera_yaw, state.camera_pitch)
 	}
-
-	// applying rotation to object
-	state.rx += 60.0 * dt
-	state.ry += 120.0 * dt
 
 	// camera transforms
 	proj: Mat4
@@ -292,18 +287,25 @@ frame :: proc "c" () {
 	{
 		// calculating mat4 of camera lens with 60deg FOV, 0.01 to 10.0 depth range
 		proj = linalg.matrix4_perspective(60.0 * linalg.RAD_PER_DEG, sapp.widthf() / sapp.heightf(), 0.01, 10.0)
+
 		// camera transform, transforms world to camera space
 		view = linalg.matrix4_look_at_f32({0.0, -1.5, -6.0}, {}, WORLD_UP)
 
 		// spin camera left/right
-		view = view * linalg.matrix4_rotate_f32(state.cam_yaw * linalg.RAD_PER_DEG, WORLD_UP)
+		yaw := linalg.matrix4_rotate_f32(state.camera_yaw * linalg.RAD_PER_DEG, WORLD_UP)
+
 		// spin camera up/down
-		view = view * linalg.matrix4_rotate_f32(state.cam_pitch * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
+		pitch := linalg.matrix4_rotate_f32(state.camera_pitch * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
+
+		view = view * pitch * yaw
 	}
 
 	// world transforms
 	model: Mat4
 	{
+		// applying rotation to object
+		state.rx += 60.0 * dt
+		state.ry += 120.0 * dt
 		// applying rotations to sphere
 		// rxm := linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
 		// rym := linalg.matrix4_rotate_f32(state.ry * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
