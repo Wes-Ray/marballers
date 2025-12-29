@@ -5,6 +5,7 @@ import "base:runtime"
 import "core:log"
 import "core:math/linalg"
 import "core:os"
+import "core:encoding/json"
 // import "core:slice"
 import "web"
 import sdtx "sokol/debugtext"
@@ -119,6 +120,13 @@ init :: proc "c" () {
 	sdtx.origin(1.0, 3.0)
 	sdtx.font(FONT_KC854)
 	sdtx.color3f(1, 1, 1)
+
+	//
+	// load gltf
+	//
+	ok := read_gltf("assets/box.glb")
+	// ok := read_gltf("assets/box_ref.glb.json")
+	log.infof("gltf read status: %t\n", ok)
 
 	//
 	// add sphere
@@ -361,6 +369,31 @@ cleanup :: proc "c" () {
 	when IS_WEB {
 		runtime._cleanup_runtime()
 	}
+}
+
+read_gltf :: proc (filepath: string) -> (success: bool) {
+    context = custom_context
+
+    log.infof("reading gltf at '%s'\n", filepath)
+
+    file, ok := read_entire_file(filepath, context.temp_allocator)
+    if !ok do return false
+
+	json_data := file
+
+	json_parser := json.make_parser(json_data)
+	parsed_object, json_err := json.parse_object(&json_parser)
+	if json_err != .None && json_err != .EOF {
+		log.errorf("json error reading gltf: %v", json_err)
+        return false
+    }
+
+	log.infof("%s\n", parsed_object)
+
+
+    // fmt.printf("%s\n", file)
+
+    return true
 }
 
 // read and write files. Works with both desktop OS and also emscripten virtual
