@@ -117,7 +117,7 @@ init :: proc "c" () {
 	//
 	// load gltf
 	//
-	_, ok := read_gltf("assets/box.glb")
+	_, ok := read_gltf("assets/box2.glb")
 	// _, ok := read_gltf("assets/box_ref.glb.json")
 	log.infof("gltf read status: %t\n", ok)
 

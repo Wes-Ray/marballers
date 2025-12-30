@@ -12,6 +12,9 @@ GLTF_MIN_VERSION :: 2
 
 CHUNK_TYPE_JSON :: 0x4e4f534a
 
+MESHES_KEY :: "meshes"
+BUFFERS_KEY :: "buffers"
+
 GLB_Header :: struct {
     magic, version, length: u32le,
 }
@@ -23,9 +26,8 @@ GLB_Chunk_Header :: struct {
 GLB_Data :: struct {
     json_value:          json.Value,
     meshes:              []Mesh,
+    buffers:             []Buffer,
 }
-
-MESHES_KEY :: "meshes"
 
 Mesh :: struct {
     primitives: []Mesh_Primitive,
@@ -42,6 +44,14 @@ Mesh_Primitive :: struct {
     // targets:           []Mesh_Target,
     // extensions:        Extensions,
     // extras:            Extras,
+}
+
+Buffer :: struct {
+    byte_length: u32,
+    name:        Maybe(string),
+    // uri:         Uri,
+    // extensions:  Extensions,
+    // extras:      Extras,
 }
 
 Mesh_Primitive_Mode :: enum {
@@ -81,10 +91,7 @@ read_gltf :: proc (filepath: string) -> (data: ^GLB_Data, success: bool) {
     header := (cast(^GLB_Header)(raw_data(file[:GLB_HEADER_SIZE])))
     offset += GLB_HEADER_SIZE
 
-    //
     // headers
-    //
-
     {
         if header.magic != GLB_MAGIC {
             log.errorf("glb magic header mismatch: %H\n", header.magic)
@@ -115,9 +122,10 @@ read_gltf :: proc (filepath: string) -> (data: ^GLB_Data, success: bool) {
         data.json_value = parsed_object
     }
     
+    object := data.json_value.(json.Object)
+
     // meshes
     {
-        object := data.json_value.(json.Object)
         if MESHES_KEY not_in object {
             log.error("can't find meshes key in gltf")
             return nil, false
@@ -148,16 +156,67 @@ read_gltf :: proc (filepath: string) -> (data: ^GLB_Data, success: bool) {
         data.meshes = meshes
     }
 
+    // buffers
+    {
+        if BUFFERS_KEY not_in object {
+            log.error("can't find buffers key in object")
+            return nil, false
+        }
 
-    // log.infof("json: %s\n", data.json_value)
-    // log.errorf("primitive: %s\n", data.meshes)
+        bufs_array := object[BUFFERS_KEY].(json.Array)
+        bufs := make([]Buffer, len(bufs_array))
 
-    log.errorf("printing meshes\n")
+        for b, i in bufs_array {
+            byte_length_set: bool
+            for k, v in b.(json.Object) {
+                switch k {
+                case "byteLength":
+                    bufs[i].byte_length = u32(v.(f64))
+                    byte_length_set = true
+                case "name":
+                    bufs[i].name = v.(string)
+                case "uri", "extensions", "extras":
+                    // not implemented
+                case:
+                    log.errorf("unexpected data in buffer parsing: %v, %v, %v", k, v, i)
+                }
+            }
+
+            if !byte_length_set {
+                log.errorf("missing byte length param when parsing buffer: %v", i)
+                return nil, false
+            }
+        }
+
+        data.buffers = bufs
+
+
+        // copied over from example gltf code, I haven't implemented uri's yet so I don't think this is relevant
+        // until then
+        // Load remaining binary chunks.
+        // for buf_idx := 0; buf_idx < len(data.buffers) && int(offset) < len(file); buf_idx += 1 {
+        //     chunk_header := (cast(^GLB_Chunk_Header)(raw_data(file[offset:offset + GLB_CHUNK_HEADER_SIZE])))
+        //     offset += GLB_CHUNK_HEADER_SIZE
+
+        //     data.buffers[buf_idx].uri = make([]byte, chunk_header.length)
+        //     mem.copy(raw_data(data.buffers[buf_idx].uri.([]byte)), raw_data(file[offset:]), int(chunk_header.length))
+        //     offset += u32(chunk_header.length)
+        // }
+    }
+
+
+    log.infof("json: %s\n", data.json_value)
+
+    log.infof("printing meshes\n")
     for m, i in data.meshes {
         log.infof("[%d] %v", i, m)
         for p, i2 in m.primitives {
             log.infof("\t[%d] %v", i2, p)
         }
+    }
+
+    for b, i in data.buffers{
+        log.infof("buf[%d] %s len(%d)", i, b.name, b.byte_length)
     }
 
     return data, true
@@ -173,6 +232,7 @@ mesh_primitives_parse :: proc(arr: json.Array) -> (res: []Mesh_Primitive, succes
             switch k {
             case "attributes":
                 for k2, v2 in v.(json.Object) {
+                    // TODO: do I need to make() this attributes?
                     res[idx].attributes[k2] = u32(v2.(f64))
                 }
             case "indices":
@@ -192,3 +252,7 @@ mesh_primitives_parse :: proc(arr: json.Array) -> (res: []Mesh_Primitive, succes
 
     return res, true
 }
+
+// TODO: free buffers
+// TODO: free primitives
+// TODO: free meshes
