@@ -1,12 +1,8 @@
 package main
 
 import "base:runtime"
-// import "core:image/png"
 import "core:log"
 import "core:math/linalg"
-import "core:os"
-import "core:encoding/json"
-// import "core:slice"
 import "web"
 import sdtx "sokol/debugtext"
 import sapp "sokol/app"
@@ -14,9 +10,6 @@ import sg "sokol/gfx"
 import sglue "sokol/glue"
 import slog "sokol/log"
 import sshape "sokol/shape"
-
-_ :: web 
-_ :: os
 
 IS_WEB :: ODIN_ARCH == .wasm32 || ODIN_ARCH == .wasm64p32
 Mat4 :: matrix[4,4]f32
@@ -124,8 +117,8 @@ init :: proc "c" () {
 	//
 	// load gltf
 	//
-	ok := read_gltf("assets/box.glb")
-	// ok := read_gltf("assets/box_ref.glb.json")
+	_, ok := read_gltf("assets/box.glb")
+	// _, ok := read_gltf("assets/box_ref.glb.json")
 	log.infof("gltf read status: %t\n", ok)
 
 	//
@@ -232,6 +225,9 @@ frame :: proc "c" () {
 	// debug text
 	sdtx.printf("DEBUG\n")
 
+	// TODO: refactor so user inputs at least once first
+	// browser has that as a promise. Could just be done with
+	// a main menu
 	if !sapp.mouse_locked() {
 		sapp.lock_mouse(true)
 	}
@@ -368,49 +364,5 @@ cleanup :: proc "c" () {
 	// will run those procedures now.
 	when IS_WEB {
 		runtime._cleanup_runtime()
-	}
-}
-
-read_gltf :: proc (filepath: string) -> (success: bool) {
-    context = custom_context
-
-    log.infof("reading gltf at '%s'\n", filepath)
-
-    file, ok := read_entire_file(filepath, context.temp_allocator)
-    if !ok do return false
-
-	json_data := file
-
-	json_parser := json.make_parser(json_data)
-	parsed_object, json_err := json.parse_object(&json_parser)
-	if json_err != .None && json_err != .EOF {
-		log.errorf("json error reading gltf: %v", json_err)
-        return false
-    }
-
-	log.infof("%s\n", parsed_object)
-
-
-    // fmt.printf("%s\n", file)
-
-    return true
-}
-
-// read and write files. Works with both desktop OS and also emscripten virtual
-// file system.
-@(require_results)
-read_entire_file :: proc(name: string, allocator := context.allocator, loc := #caller_location) -> (data: []byte, success: bool) {
-	when IS_WEB {
-		return web.read_entire_file(name, allocator, loc)
-	} else {
-		return os.read_entire_file(name, allocator, loc)
-	}
-}
-
-write_entire_file :: proc(name: string, data: []byte, truncate := true) -> (success: bool) {
-	when IS_WEB {
-		return web.write_entire_file(name, data, truncate)
-	} else {
-		return os.write_entire_file(name, data, truncate)
 	}
 }
