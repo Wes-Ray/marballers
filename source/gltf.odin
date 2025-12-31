@@ -14,6 +14,7 @@ CHUNK_TYPE_JSON :: 0x4e4f534a
 
 MESHES_KEY :: "meshes"
 BUFFERS_KEY :: "buffers"
+ACCESSORS_KEY :: "accessors"
 
 GLB_Header :: struct {
     magic, version, length: u32le,
@@ -24,9 +25,36 @@ GLB_Chunk_Header :: struct {
 }
 
 GLB_Data :: struct {
-    json_value:          json.Value,
-    meshes:              []Mesh,
-    buffers:             []Buffer,
+    json_value:         json.Value,
+    accessors:          []Accessor,            
+    meshes:             []Mesh,
+    buffers:            []Buffer,
+}
+
+Accessor :: struct {
+    byte_offset:        u32,
+    component_type:     Component_Type,
+    count:              u32,
+    type:               Accessor_Type,
+}
+
+Component_Type :: enum u16 {
+    Byte = 5120,
+    Unsigned_Byte,
+    Short,
+    Unsigned_Short,
+    Unsigned_Int = 5125,
+    Float,
+}
+
+Accessor_Type :: enum {
+    Scalar,
+    Vector2,
+    Vector3,
+    Vector4,
+    Matrix2,
+    Matrix3,
+    Matrix4,
 }
 
 Mesh :: struct {
@@ -156,6 +184,82 @@ read_gltf :: proc (filepath: string) -> (data: ^GLB_Data, success: bool) {
         data.meshes = meshes
     }
 
+    // accessor
+    {
+        if ACCESSORS_KEY not_in object {
+            log.error("can't find accessors key in gltf")
+            return nil, false
+        }
+
+        accessors_array := object[ACCESSORS_KEY].(json.Array)
+        accessors := make([]Accessor, len(accessors_array))
+
+        for access, i in accessors_array {
+            component_type_set, count_set, type_set: bool
+
+            for k, v in access.(json.Object) {
+                switch k {
+                case "bufferView":
+                    // not implemented
+                case "byteOffset":
+                    accessors[i].byte_offset = u32(v.(f64))
+                case "componentType":
+                    accessors[i].component_type = Component_Type(v.(f64))
+                    component_type_set = true
+                case "normalized":
+                    // not implemented
+                case "count":
+                    accessors[i].count = u32(v.(f64))
+                    count_set = true
+                case "type":
+                    switch v.(string) {
+                    case "SCALAR":
+                        accessors[i].type = .Scalar
+                        type_set = true
+                    case "VEC2":
+                        accessors[i].type = .Vector2
+                        type_set = true
+                    case "VEC3":
+                        accessors[i].type = .Vector3
+                        type_set = true
+                    case "VEC4":
+                        accessors[i].type = .Vector4
+                        type_set = true
+                    case "MAT2":
+                        accessors[i].type = .Matrix2
+                    case "MAT3":
+                        accessors[i].type = .Matrix3
+                    case "MAT4":
+                        accessors[i].type = .Matrix4
+                    case:
+                        log.error("unexpected type when parsing accessor type")
+                        return nil, false
+                    }
+                case "max", "min", "sparse", "name", "extensions", "extras":
+                    // not implemented
+                case:
+                    log.error("parsing got unexpected accessor value: %v, %v, %v", k, v, i)
+                    return nil, false
+                }
+            }
+
+            if !component_type_set {
+                log.error("no component type set when parsing gltf")
+                return nil, false
+            }
+            if !count_set {
+                log.error("no count set when parsing gltf")
+                return nil, false
+            }
+            if !type_set {
+                log.error("no type set when parsing gltf")
+                return nil, false
+            }
+        }
+
+        data.accessors = accessors
+    }
+
     // buffers
     {
         if BUFFERS_KEY not_in object {
@@ -231,8 +335,8 @@ mesh_primitives_parse :: proc(arr: json.Array) -> (res: []Mesh_Primitive, succes
         for k, v in prim.(json.Object) {
             switch k {
             case "attributes":
+                res[idx].attributes = make(map[string]u32)
                 for k2, v2 in v.(json.Object) {
-                    // TODO: do I need to make() this attributes?
                     res[idx].attributes[k2] = u32(v2.(f64))
                 }
             case "indices":
@@ -254,5 +358,5 @@ mesh_primitives_parse :: proc(arr: json.Array) -> (res: []Mesh_Primitive, succes
 }
 
 // TODO: free buffers
-// TODO: free primitives
+// TODO: free primitives (and attributes map within that)
 // TODO: free meshes
