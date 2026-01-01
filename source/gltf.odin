@@ -4,6 +4,7 @@ package main
 
 import "core:encoding/json"
 import "core:log"
+import "core:mem"
 
 GLB_MAGIC :: 0x46546c67
 GLB_HEADER_SIZE :: size_of(GLB_Header)
@@ -11,9 +12,11 @@ GLB_CHUNK_HEADER_SIZE :: size_of(GLB_Chunk_Header)
 GLTF_MIN_VERSION :: 2
 
 CHUNK_TYPE_JSON :: 0x4e4f534a
+CHUNK_TYPE_BIN :: 0x004e4942
 
 MESHES_KEY :: "meshes"
 BUFFERS_KEY :: "buffers"
+BUFFER_VIEWS_KEY :: "bufferViews"
 ACCESSORS_KEY :: "accessors"
 
 GLB_Header :: struct {
@@ -29,6 +32,7 @@ GLB_Data :: struct {
     accessors:          []Accessor,            
     meshes:             []Mesh,
     buffers:            []Buffer,
+    buffer_views:       []Buffer_View,
 }
 
 Accessor :: struct {
@@ -36,6 +40,7 @@ Accessor :: struct {
     component_type:     Component_Type,
     count:              u32,
     type:               Accessor_Type,
+    buffer_view:        Maybe(u32),
 }
 
 Component_Type :: enum u16 {
@@ -74,14 +79,6 @@ Mesh_Primitive :: struct {
     // extras:            Extras,
 }
 
-Buffer :: struct {
-    byte_length: u32,
-    name:        Maybe(string),
-    // uri:         Uri,
-    // extensions:  Extensions,
-    // extras:      Extras,
-}
-
 Mesh_Primitive_Mode :: enum {
     Points,
     Lines,
@@ -90,6 +87,28 @@ Mesh_Primitive_Mode :: enum {
     Triangles, // Default
     Triangle_Strip,
     Triangle_Fan,
+}
+
+Buffer :: struct {
+    byte_length: u32,
+    name:        Maybe(string),
+    uri:         Uri,
+    // extensions:  Extensions,
+    // extras:      Extras,
+}
+
+Uri :: union {
+    string,
+    []byte,
+}
+
+Buffer_View :: struct {
+    buffer, byte_offset, byte_length: u32,
+    // byte_stride:                      Maybe(Integer),
+    // target:                           Maybe(Buffer_Type_Hint),
+    // name:                             Maybe(string),
+    // extensions:                       Extensions,
+    // extras:                           Extras,  
 }
 
 unload_glb_data :: proc(data: ^GLB_Data) {
@@ -200,7 +219,7 @@ read_gltf :: proc (filepath: string) -> (data: ^GLB_Data, success: bool) {
             for k, v in access.(json.Object) {
                 switch k {
                 case "bufferView":
-                    // not implemented
+                    accessors[i].buffer_view = u32(v.(f64))
                 case "byteOffset":
                     accessors[i].byte_offset = u32(v.(f64))
                 case "componentType":
@@ -294,18 +313,60 @@ read_gltf :: proc (filepath: string) -> (data: ^GLB_Data, success: bool) {
 
         data.buffers = bufs
 
+        // Load remaining binary chunks from glb
+        for buf_idx := 0; buf_idx < len(data.buffers) && int(offset) < len(file); buf_idx += 1 {
+            chunk_header := (cast(^GLB_Chunk_Header)(raw_data(file[offset:offset + GLB_CHUNK_HEADER_SIZE])))
+            offset += GLB_CHUNK_HEADER_SIZE
 
-        // copied over from example gltf code, I haven't implemented uri's yet so I don't think this is relevant
-        // until then
-        // Load remaining binary chunks.
-        // for buf_idx := 0; buf_idx < len(data.buffers) && int(offset) < len(file); buf_idx += 1 {
-        //     chunk_header := (cast(^GLB_Chunk_Header)(raw_data(file[offset:offset + GLB_CHUNK_HEADER_SIZE])))
-        //     offset += GLB_CHUNK_HEADER_SIZE
+            data.buffers[buf_idx].uri = make([]byte, chunk_header.length)
+            mem.copy(raw_data(data.buffers[buf_idx].uri.([]byte)), raw_data(file[offset:]), int(chunk_header.length))
+            offset += u32(chunk_header.length)
+            log.errorf("mem copies bin data: %d", offset)
+        }
+    }
 
-        //     data.buffers[buf_idx].uri = make([]byte, chunk_header.length)
-        //     mem.copy(raw_data(data.buffers[buf_idx].uri.([]byte)), raw_data(file[offset:]), int(chunk_header.length))
-        //     offset += u32(chunk_header.length)
-        // }
+    // buffer views
+    {
+        if BUFFER_VIEWS_KEY not_in object {
+            log.error("buffer views key not found in object")
+            return nil, false
+        }
+
+        views_array := object[BUFFER_VIEWS_KEY].(json.Array)
+        res_views := make([]Buffer_View, len(views_array))
+
+        buffer_set, byte_length_set: bool
+        for view, i in views_array {
+
+            for k, v in view.(json.Object) {
+                switch k {
+                case "buffer":
+                    res_views[i].buffer = u32(v.(f64))
+                    buffer_set = true
+                case "byteLength":
+                    res_views[i].byte_length = u32(v.(f64))
+                    byte_length_set = true
+                case "byteOffset":
+                    res_views[i].byte_offset = u32(v.(f64))
+                case "byteStride", "name", "target", "extensions", "extras":
+                    // not implemented
+                case:
+                    log.errorf("unexpected data in buffer view parsing: %v, %v, %v", k, v, i)
+                    return nil, false
+                }
+            }
+        }
+
+        if !buffer_set {
+            log.errorf("buffer not set when parsing buffer view")
+            return nil, false
+        }
+        if !byte_length_set {
+            log.errorf("byte length not set when parsing buffer view")
+            return nil, false
+        }
+
+        data.buffer_views = res_views
     }
 
 
@@ -360,3 +421,4 @@ mesh_primitives_parse :: proc(arr: json.Array) -> (res: []Mesh_Primitive, succes
 // TODO: free buffers
 // TODO: free primitives (and attributes map within that)
 // TODO: free meshes
+// TODO: free buffer views
