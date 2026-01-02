@@ -35,21 +35,21 @@ Shape :: struct {
 }
 
 state: struct {
-	pass_action: sg.Pass_Action,
-	pip: sg.Pipeline,
-	bind: sg.Bindings,
-	shape: Shape,
-	rx, ry: f32,
-	input_mouse_left_down: bool,
-	input_mouse_dx: f32,
-	input_mouse_dy: f32,
-	input_left: bool,
-	input_right: bool,
-	input_up: bool,
-	input_down: bool,
-	// camera_rotation: Vec2,
-	camera_yaw: f32,
-	camera_pitch: f32,
+	pass_action: 			sg.Pass_Action,
+	pipeline: 				sg.Pipeline,
+	bind: 					sg.Bindings,
+	marble_shape: 			Shape,
+	level_shape: 			Shape,
+	rx, ry: 				f32,
+	input_mouse_left_down:	bool,
+	input_mouse_dx: 		f32,
+	input_mouse_dy: 		f32,
+	input_left: 			bool,
+	input_right: 			bool,
+	input_up: 				bool,
+	input_down: 			bool,
+	camera_yaw: 			f32,
+	camera_pitch: 			f32,
 }
 
 custom_context: runtime.Context
@@ -117,34 +117,87 @@ init :: proc "c" () {
 	//
 	// load gltf
 	//
-	_, ok := read_gltf("assets/box2.glb")
+	level, ok := read_gltf("assets/box2.glb")
 	// _, ok := read_gltf("assets/box_ref.glb.json")
 	log.infof("gltf read status: %t\n", ok)
+
+	if ok && len(level.meshes) > 0 {
+        log.error("--- DEBUGGING GEOMETRY ---")
+        
+        // 1. Get the first Primitive of the first Mesh
+        mesh := level.meshes[0]
+        prim := mesh.primitives[0]
+        
+        // 2. Find the accessor index for POSITION
+        if "POSITION" in prim.attributes {
+            acc_idx := prim.attributes["POSITION"]
+            accessor := level.accessors[acc_idx]
+            
+            // 3. Get the BufferView and Buffer
+            // Note: In a robust loader, check for nil on buffer_view
+            view_idx := accessor.buffer_view.?
+            view := level.buffer_views[view_idx]
+            buffer := level.buffers[view.buffer]
+            
+            // 4. Calculate the pointer to the data
+            // Access the []byte stored in the URI (which your loader uses for the binary body)
+            bin_data := buffer.uri.([]byte) 
+            base_ptr := raw_data(bin_data)
+            
+            // Total Offset = View Offset + Accessor Offset
+            total_offset := uintptr(view.byte_offset) + uintptr(accessor.byte_offset)
+            data_ptr := uintptr(base_ptr) + total_offset
+            
+            // 5. Cast to float array and print first 3 vertices
+            floats := ([^]f32)(data_ptr)
+            
+            log.infof("Accessor Count: %d", accessor.count)
+            log.infof("Vertex 0: %f, %f, %f", floats[0], floats[1], floats[2])
+            log.infof("Vertex 1: %f, %f, %f", floats[3], floats[4], floats[5])
+            log.infof("Vertex 2: %f, %f, %f", floats[6], floats[7], floats[8])
+        }
+    }
+
+	//
+	// add cube practice
+	//
+
+	state.level_shape.pos = {-5.0, -5.0, -2.0}
+
+	buf := sshape.Buffer {
+		vertices = { buffer = { ptr = &vertices, size = size_of(vertices) } },
+		indices = { buffer = { ptr = &indices, size = size_of(indices) } },
+	}
+
+	buf = sshape.build_box(buf, {
+		width = 0.5,
+		height = 3.5,
+		depth = 0.5,
+		random_colors = true,
+	})
+
+	state.level_shape.draw = sshape.element_range(buf)
 
 	//
 	// add sphere
 	// 
 
-	state.shape.pos = {0.0, 0.0, 0.0}
+	// see sokol-odin\examples\shapes\main.odin for how to apply positions
+	state.marble_shape.pos = {0.0, 0.0, 0.0}
 	
-    buf := sshape.Buffer {
-        vertices = { buffer = { ptr = &vertices, size = size_of(vertices) } },
-        indices  = { buffer = { ptr = &indices, size = size_of(indices) } },
-    }
-
 	buf = sshape.build_sphere(buf, {
         radius = 0.75,
         slices = 72,
         stacks = 40,
         random_colors = true,
     })
-    state.shape.draw = sshape.element_range(buf)
+    state.marble_shape.draw = sshape.element_range(buf)
 
 	state.bind.vertex_buffers[0] = sg.make_buffer(sshape.vertex_buffer_desc(buf))
 	state.bind.index_buffer      = sg.make_buffer(sshape.index_buffer_desc(buf))
 
-    // shader and pipeline object for sphere
-    state.pip = sg.make_pipeline({
+    // shader and pipeline object loading
+    state.pipeline = sg.make_pipeline({
         shader = sg.make_shader(shapes_shader_desc(sg.query_backend())),
         layout = {
             buffers = {
@@ -337,12 +390,13 @@ frame :: proc "c" () {
 		sg.begin_pass({ action = state.pass_action, swapchain = sglue.swapchain() })
 
 		// 3d draw
-		sg.apply_pipeline(state.pip)
+		sg.apply_pipeline(state.pipeline)
 		sg.apply_bindings(state.bind)
 		sg.apply_uniforms(UB_vs_params, { ptr = &vs_params, size = size_of(vs_params) })
 
-		// draw sphere
-		sg.draw(int(state.shape.draw.base_element), int(state.shape.draw.num_elements), 1)
+		// draw objects
+		sg.draw(int(state.marble_shape.draw.base_element), int(state.marble_shape.draw.num_elements), 1)
+		sg.draw(int(state.level_shape.draw.base_element), int(state.level_shape.draw.num_elements), 1)
 
 		// commit graphics and debug text
 		sdtx.draw()

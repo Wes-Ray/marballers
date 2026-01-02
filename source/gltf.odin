@@ -314,6 +314,7 @@ read_gltf :: proc (filepath: string) -> (data: ^GLB_Data, success: bool) {
         data.buffers = bufs
 
         // Load remaining binary chunks from glb
+        // TODO: move this to bottom of read_gltf proc?
         for buf_idx := 0; buf_idx < len(data.buffers) && int(offset) < len(file); buf_idx += 1 {
             chunk_header := (cast(^GLB_Chunk_Header)(raw_data(file[offset:offset + GLB_CHUNK_HEADER_SIZE])))
             offset += GLB_CHUNK_HEADER_SIZE
@@ -321,7 +322,7 @@ read_gltf :: proc (filepath: string) -> (data: ^GLB_Data, success: bool) {
             data.buffers[buf_idx].uri = make([]byte, chunk_header.length)
             mem.copy(raw_data(data.buffers[buf_idx].uri.([]byte)), raw_data(file[offset:]), int(chunk_header.length))
             offset += u32(chunk_header.length)
-            log.errorf("mem copies bin data: %d", offset)
+            log.infof("mem copies bin data: %d", offset)
         }
     }
 
@@ -369,20 +370,20 @@ read_gltf :: proc (filepath: string) -> (data: ^GLB_Data, success: bool) {
         data.buffer_views = res_views
     }
 
+    // debug prints
+    // log.infof("json: %s\n", data.json_value)
 
-    log.infof("json: %s\n", data.json_value)
+    // log.infof("printing meshes\n")
+    // for m, i in data.meshes {
+    //     log.infof("[%d] %v", i, m)
+    //     for p, i2 in m.primitives {
+    //         log.infof("\t[%d] %v", i2, p)
+    //     }
+    // }
 
-    log.infof("printing meshes\n")
-    for m, i in data.meshes {
-        log.infof("[%d] %v", i, m)
-        for p, i2 in m.primitives {
-            log.infof("\t[%d] %v", i2, p)
-        }
-    }
-
-    for b, i in data.buffers{
-        log.infof("buf[%d] %s len(%d)", i, b.name, b.byte_length)
-    }
+    // for b, i in data.buffers{
+    //     log.infof("buf[%d] %s len(%d)", i, b.name, b.byte_length)
+    // }
 
     return data, true
 }
