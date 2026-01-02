@@ -12,9 +12,6 @@ import slog "sokol/log"
 import sshape "sokol/shape"
 
 IS_WEB :: ODIN_ARCH == .wasm32 || ODIN_ARCH == .wasm64p32
-Mat4 :: matrix[4,4]f32
-Vec3 :: [3]f32
-Vec2 :: [2]f32
 
 SMP_smp :: 0
 
@@ -26,8 +23,6 @@ NUM_FONTS  :: 3
 MOUSE_SENSITIVITY: f32 = 1.0
 MOUSE_SENSITIVITY_MULTIPLIER: f32 = 0.4
 MOUSE_PITCH_MAX_ANGLE: f32 = 55.0
-
-WORLD_UP :: Vec3{0.0, 1.0, 0.0}
 
 Shape :: struct {
 	pos: Vec3,
@@ -162,6 +157,8 @@ init :: proc "c" () {
 	// add cube practice
 	//
 
+	// see sokol-odin\examples\shapes\main.odin for how to apply position per frame
+	// need to port the math library as well
 	state.level_shape.pos = {-5.0, -5.0, -2.0}
 
 	buf := sshape.Buffer {
