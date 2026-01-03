@@ -366,8 +366,8 @@ frame :: proc "c" () {
 		state.rx += 60.0 * dt
 		state.ry += 120.0 * dt
 		// applying rotations to sphere
-		// rxm := linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
-		// rym := linalg.matrix4_rotate_f32(state.ry * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+		// rxm := rotate_mat4(state.rx * RAD_PER_DEG, {1.0, 0.0, 0.0})
+		// rym := rotate_mat4(state.ry * RAD_PER_DEG, {0.0, 1.0, 0.0})
 		rxm := rotate_mat4(1.0 * RAD_PER_DEG, {1.0, 0.0, 0.0})
 		rym := rotate_mat4(1.0 * RAD_PER_DEG, {0.0, 1.0, 0.0})
 		model = rxm * rym

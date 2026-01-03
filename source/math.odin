@@ -1,10 +1,4 @@
-//------------------------------------------------------------------------------
-//  math.odin
-//
-//  The Odin glsl math package doesn't use the same conventions as
-//  HandmadeMath in the original sokol samples, so just replicate
-//  HandmadeMath to be consistent.
-//------------------------------------------------------------------------------
+// adapted from odin-windows-amd64-dev-2025-10-05\dist\core\math\linalg\specific.odin
 package main
 
 import math "core:math"
@@ -112,12 +106,12 @@ rotate_mat4 :: proc (angle_radians: f32, v: Vec3) -> Mat4 #no_bounds_check {
 	return rot
 }
 
-translate_mat4 :: proc (translation: Vec3) -> Mat4 {
-    m := identity_mat4()
-    m[3][0] = translation.x
-    m[3][1] = translation.y
-    m[3][2] = translation.z
-    return m
+translate_mat4 :: proc (translation: Vec3) -> Mat4 #no_bounds_check {
+	m := identity_mat4()
+	m[3][0] = translation[0]
+	m[3][1] = translation[1]
+	m[3][2] = translation[2]
+	return m
 }
 
 mul_mat4 :: proc (left, right: Mat4) -> Mat4 {
