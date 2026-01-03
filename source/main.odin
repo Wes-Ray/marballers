@@ -377,31 +377,36 @@ frame :: proc "c" () {
 		
 	}
 
+	shapes: [2]Shape
+	shapes[0] = state.level_shape
+	shapes[1] = state.marble_shape
+
 	// send gfx to gpu, apply and end frame
-	{
-		// sending params
-		vs_params := Vs_Params {
-			proj = proj,
-			view = view,
-			model = model,
-		}
+	sg.begin_pass({ action = state.pass_action, swapchain = sglue.swapchain() })
 
-		sg.begin_pass({ action = state.pass_action, swapchain = sglue.swapchain() })
-
+	// sending params
+	vs_params := Vs_Params {
+		proj = proj,
+		view = view,
+		model = model,
+	}
+	
+	for s in shapes {
 		// 3d draw
 		sg.apply_pipeline(state.pipeline)
 		sg.apply_bindings(state.bind)
 		sg.apply_uniforms(UB_vs_params, { ptr = &vs_params, size = size_of(vs_params) })
 
 		// draw objects
-		sg.draw(int(state.marble_shape.draw.base_element), int(state.marble_shape.draw.num_elements), 1)
-		sg.draw(int(state.level_shape.draw.base_element), int(state.level_shape.draw.num_elements), 1)
-
-		// commit graphics and debug text
-		sdtx.draw()
-		sg.end_pass()
-		sg.commit()
+		// sg.draw(int(state.marble_shape.draw.base_element), int(state.marble_shape.draw.num_elements), 1)
+		// sg.draw(int(state.level_shape.draw.base_element), int(state.level_shape.draw.num_elements), 1)
+		sg.draw(int(s.draw.base_element), int(s.draw.num_elements), 1)
 	}
+
+	// commit graphics and debug text
+	sdtx.draw()
+	sg.end_pass()
+	sg.commit()
 
 	free_all(context.temp_allocator)
 }
