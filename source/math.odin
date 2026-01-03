@@ -54,7 +54,7 @@ identity_mat4 :: proc() -> Mat4 {
 }
 
 @(require_results)
-perspective_mat4 :: proc "contextless" (fovy, aspect, near, far: f32, flip_z_axis := true) -> (m: Mat4) #no_bounds_check {
+perspective_mat4 :: proc (fovy, aspect, near, far: f32, flip_z_axis := true) -> (m: Mat4) #no_bounds_check {
 	tan_half_fovy := math.tan(0.5 * fovy)
 	m[0, 0] = 1 / (aspect*tan_half_fovy)
 	m[1, 1] = 1 / (tan_half_fovy)
@@ -69,51 +69,47 @@ perspective_mat4 :: proc "contextless" (fovy, aspect, near, far: f32, flip_z_axi
 	return
 }
 
-lookat_mat4 :: proc(eye, center, up: Vec3) -> Mat4 {
-    m := Mat4 {}
-    f := norm_vec3(center - eye)
-    s := norm_vec3(cross_vec3(f, up))
-    u := cross_vec3(s, f)
+@(require_results)
+lookat_mat4 :: proc (eye, centre, up: Vec3, flip_z_axis := true) -> (m: Mat4) {
+	f := norm_vec3(centre - eye)
+	s := norm_vec3(cross_vec3(f, up))
+	u := cross_vec3(s, f)
 
-    m[0][0] = s.x
-    m[0][1] = u.x
-    m[0][2] = -f.x
+	fe := dot_vec3(f, eye)
 
-    m[1][0] = s.y
-    m[1][1] = u.y
-    m[1][2] = -f.y
-
-    m[2][0] = s.z
-    m[2][1] = u.z
-    m[2][2] = -f.z
-
-    m[3][0] = -dot_vec3(s, eye)
-    m[3][1] = -dot_vec3(u, eye)
-    m[3][2] = dot_vec3(f, eye)
-    m[3][3] = 1.0
-
-    return m
+	return {
+		+s.x, +s.y, +s.z, -dot_vec3(s, eye),
+		+u.x, +u.y, +u.z, -dot_vec3(u, eye),
+		-f.x, -f.y, -f.z, +fe if flip_z_axis else -fe,
+		   0,    0,    0, 1,
+	}
 }
 
-rotate_mat4 :: proc (angle: f32, axis_unorm: Vec3) -> Mat4 {
-    m := identity_mat4()
+rotate_mat4 :: proc (angle_radians: f32, v: Vec3) -> Mat4 #no_bounds_check {
+	c := math.cos(angle_radians)
+	s := math.sin(angle_radians)
 
-    axis := norm_vec3(axis_unorm)
-    sin_theta := math.sin(radians(angle))
-    cos_theta := math.cos(radians(angle))
-    cos_value := 1.0 - cos_theta
+	a := norm_vec3(v)
+	t := a * (1-c)
 
-    m[0][0] = (axis.x * axis.x * cos_value) + cos_theta
-    m[0][1] = (axis.x * axis.y * cos_value) + (axis.z * sin_theta)
-    m[0][2] = (axis.x * axis.z * cos_value) - (axis.y * sin_theta)
-    m[1][0] = (axis.y * axis.x * cos_value) - (axis.z * sin_theta)
-    m[1][1] = (axis.y * axis.y * cos_value) + cos_theta
-    m[1][2] = (axis.y * axis.z * cos_value) + (axis.x * sin_theta)
-    m[2][0] = (axis.z * axis.x * cos_value) + (axis.y * sin_theta)
-    m[2][1] = (axis.z * axis.y * cos_value) - (axis.x * sin_theta)
-    m[2][2] = (axis.z * axis.z * cos_value) + cos_theta
+	rot := identity_mat4()
 
-    return m
+	rot[0][0] = c + t[0]*a[0]
+	rot[0][1] = 0 + t[0]*a[1] + s*a[2]
+	rot[0][2] = 0 + t[0]*a[2] - s*a[1]
+	rot[0][3] = 0
+
+	rot[1][0] = 0 + t[1]*a[0] - s*a[2]
+	rot[1][1] = c + t[1]*a[1]
+	rot[1][2] = 0 + t[1]*a[2] + s*a[0]
+	rot[1][3] = 0
+
+	rot[2][0] = 0 + t[2]*a[0] + s*a[1]
+	rot[2][1] = 0 + t[2]*a[1] - s*a[0]
+	rot[2][2] = c + t[2]*a[2]
+	rot[2][3] = 0
+
+	return rot
 }
 
 translate_mat4 :: proc (translation: Vec3) -> Mat4 {
