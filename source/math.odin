@@ -16,6 +16,9 @@ Vec2 :: [2]f32
 Vec3 :: [3]f32
 Mat4 :: matrix[4,4]f32
 
+RAD_PER_DEG :: TAU/360.0
+DEG_PER_RAD :: 360.0/TAU
+
 WORLD_UP :: Vec3{0.0, 1.0, 0.0}
 
 radians :: proc (degrees: f32) -> f32 { return degrees * TAU / 360.0 }
@@ -50,16 +53,20 @@ identity_mat4 :: proc() -> Mat4 {
     return m
 }
 
-persp_mat4 :: proc(fov, aspect, near, far: f32) -> Mat4 {
-    m := identity_mat4()
-    t := math.tan(fov * (PI / 360))
-    m[0][0] = 1.0 / t
-    m[1][1] = aspect / t
-    m[2][3] = -1.0
-    m[2][2] = (near + far) / (near - far)
-    m[3][2] = (2.0 * near * far) / (near - far)
-    m[3][3] = 0
-    return m
+@(require_results)
+perspective_mat4 :: proc "contextless" (fovy, aspect, near, far: f32, flip_z_axis := true) -> (m: Mat4) #no_bounds_check {
+	tan_half_fovy := math.tan(0.5 * fovy)
+	m[0, 0] = 1 / (aspect*tan_half_fovy)
+	m[1, 1] = 1 / (tan_half_fovy)
+	m[2, 2] = +(far + near) / (far - near)
+	m[3, 2] = +1
+	m[2, 3] = -2*far*near / (far - near)
+
+	if flip_z_axis {
+		m[2] = -m[2]
+	}
+
+	return
 }
 
 lookat_mat4 :: proc(eye, center, up: Vec3) -> Mat4 {

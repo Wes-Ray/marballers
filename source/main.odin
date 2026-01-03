@@ -2,7 +2,6 @@ package main
 
 import "base:runtime"
 import "core:log"
-import "core:math/linalg"
 import "web"
 import sdtx "sokol/debugtext"
 import sapp "sokol/app"
@@ -346,16 +345,16 @@ frame :: proc "c" () {
 	view: Mat4
 	{
 		// calculating mat4 of camera lens with 60deg FOV, 0.01 to 10.0 depth range
-		proj = linalg.matrix4_perspective(60.0 * linalg.RAD_PER_DEG, sapp.widthf() / sapp.heightf(), 0.01, 10.0)
+		proj = perspective_mat4(60.0 * RAD_PER_DEG, sapp.widthf() / sapp.heightf(), 0.01, 10.0)
 
 		// camera transform, transforms world to camera space
-		view = linalg.matrix4_look_at_f32({0.0, -1.5, -6.0}, {}, WORLD_UP)
+		view = lookat_mat4({0.0, -1.5, -6.0}, {}, WORLD_UP)
 
 		// spin camera left/right
-		yaw := linalg.matrix4_rotate_f32(state.camera_yaw * linalg.RAD_PER_DEG, WORLD_UP)
+		yaw := rotate_mat4(state.camera_yaw * RAD_PER_DEG, WORLD_UP)
 
 		// spin camera up/down
-		pitch := linalg.matrix4_rotate_f32(state.camera_pitch * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
+		pitch := rotate_mat4(state.camera_pitch * RAD_PER_DEG, {1.0, 0.0, 0.0})
 
 		view = view * pitch * yaw
 	}
@@ -369,10 +368,13 @@ frame :: proc "c" () {
 		// applying rotations to sphere
 		// rxm := linalg.matrix4_rotate_f32(state.rx * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
 		// rym := linalg.matrix4_rotate_f32(state.ry * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
-		rxm := linalg.matrix4_rotate_f32(1.0 * linalg.RAD_PER_DEG, {1.0, 0.0, 0.0})
-		rym := linalg.matrix4_rotate_f32(1.0 * linalg.RAD_PER_DEG, {0.0, 1.0, 0.0})
+		rxm := rotate_mat4(1.0 * RAD_PER_DEG, {1.0, 0.0, 0.0})
+		rym := rotate_mat4(1.0 * RAD_PER_DEG, {0.0, 1.0, 0.0})
 		model = rxm * rym
 		// model := Mat4{}
+
+		// TODO: need to send multiple different models to gpu somehow?
+		
 	}
 
 	// send gfx to gpu, apply and end frame
