@@ -2,6 +2,7 @@
 package main
 
 import math "core:math"
+import sshape "sokol/shape"
 
 TAU :: 6.28318530717958647692528676655900576
 PI  :: 3.14159265358979323846264338327950288
@@ -9,6 +10,7 @@ PI  :: 3.14159265358979323846264338327950288
 Vec2 :: [2]f32
 Vec3 :: [3]f32
 Mat4 :: matrix[4,4]f32
+// Mat4_Sokol :: [4][4]f32
 
 RAD_PER_DEG :: TAU/360.0
 DEG_PER_RAD :: 360.0/TAU
@@ -20,6 +22,26 @@ radians :: proc (degrees: f32) -> f32 { return degrees * TAU / 360.0 }
 dot_vec3 :: proc(v0, v1: Vec3) -> f32 { return v0.x*v1.x + v0.y*v1.y + v0.z*v1.z }
 
 len_vec3 :: proc(v: Vec3) -> f32 { return math.sqrt(dot_vec3(v, v)) }
+
+mat4_to_sokol :: proc(m: Mat4) -> (out: sshape.Mat4) {
+    out = {}
+    for col in 0..<4 {
+        for row in 0..<4 {
+            out.m[col][row] = m[col][row]
+        }
+    }
+    return
+}
+
+mat4_from_sokol :: proc(m: sshape.Mat4) -> (out: Mat4) {
+    out = {}
+    for col in 0..<4 {
+        for row in 0..<4 {
+            out[col][row] = m.m[col][row]
+        }
+    }
+    return
+}
 
 norm_vec3 :: proc(v: Vec3) -> Vec3 {
     l := len_vec3(v)

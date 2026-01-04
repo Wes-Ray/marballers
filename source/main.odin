@@ -148,9 +148,11 @@ init :: proc "c" () {
 				floats := ([^]f32)(data_ptr)
 				
 				log.infof("Accessor Count: %d", accessor.count)
-				log.infof("Vertex 0: %f, %f, %f", floats[0], floats[1], floats[2])
-				log.infof("Vertex 1: %f, %f, %f", floats[3], floats[4], floats[5])
-				log.infof("Vertex 2: %f, %f, %f", floats[6], floats[7], floats[8])
+				for y: u32 = 0; y < accessor.count; y += 1 {
+					// VEC3 has 3 components per vertex
+					idx := y * 3 
+					log.infof("Vertex %d: %f, %f, %f", y, floats[idx], floats[idx+1], floats[idx+2])
+				}
 			}
 		}
     }
@@ -168,10 +170,13 @@ init :: proc "c" () {
 		indices = { buffer = { ptr = &indices, size = size_of(indices) } },
 	}
 
+	box_pos := mat4_to_sokol(translate_mat4({1, 1, 1}))
+
 	buf = sshape.build_box(buf, {
 		width = 0.5,
 		height = 3.5,
 		depth = 0.5,
+		transform = box_pos,
 		random_colors = true,
 	})
 
