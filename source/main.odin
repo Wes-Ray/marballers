@@ -115,41 +115,44 @@ init :: proc "c" () {
 	// _, ok := read_gltf("assets/box_ref.glb.json")
 	log.infof("gltf read status: %t\n", ok)
 
-	if ok && len(level.meshes) > 0 {
+	if ok {
         log.error("--- DEBUGGING GEOMETRY ---")
         
         // 1. Get the first Primitive of the first Mesh
-        mesh := level.meshes[0]
-        prim := mesh.primitives[0]
-        
-        // 2. Find the accessor index for POSITION
-        if "POSITION" in prim.attributes {
-            acc_idx := prim.attributes["POSITION"]
-            accessor := level.accessors[acc_idx]
-            
-            // 3. Get the BufferView and Buffer
-            // Note: In a robust loader, check for nil on buffer_view
-            view_idx := accessor.buffer_view.?
-            view := level.buffer_views[view_idx]
-            buffer := level.buffers[view.buffer]
-            
-            // 4. Calculate the pointer to the data
-            // Access the []byte stored in the URI (which your loader uses for the binary body)
-            bin_data := buffer.uri.([]byte) 
-            base_ptr := raw_data(bin_data)
-            
-            // Total Offset = View Offset + Accessor Offset
-            total_offset := uintptr(view.byte_offset) + uintptr(accessor.byte_offset)
-            data_ptr := uintptr(base_ptr) + total_offset
-            
-            // 5. Cast to float array and print first 3 vertices
-            floats := ([^]f32)(data_ptr)
-            
-            log.infof("Accessor Count: %d", accessor.count)
-            log.infof("Vertex 0: %f, %f, %f", floats[0], floats[1], floats[2])
-            log.infof("Vertex 1: %f, %f, %f", floats[3], floats[4], floats[5])
-            log.infof("Vertex 2: %f, %f, %f", floats[6], floats[7], floats[8])
-        }
+        // mesh := level.meshes[0]
+        // prim := mesh.primitives[0]
+
+		for mesh, i in level.meshes {
+			log.errorf("MESH IDX: %d - name: %s", i, mesh.name)
+
+			prim := mesh.primitives[0]
+
+			if "POSITION" in prim.attributes {
+				acc_idx := prim.attributes["POSITION"]
+				accessor := level.accessors[acc_idx]
+				
+				// Get the BufferView and Buffer
+				view_idx := accessor.buffer_view.?
+				view := level.buffer_views[view_idx]
+				buffer := level.buffers[view.buffer]
+				
+				// Access the []byte stored in the URI
+				bin_data := buffer.uri.([]byte) 
+				base_ptr := raw_data(bin_data)
+				
+				// Total Offset = View Offset + Accessor Offset
+				total_offset := uintptr(view.byte_offset) + uintptr(accessor.byte_offset)
+				data_ptr := uintptr(base_ptr) + total_offset
+				
+				// to float array and print first 3 vertices
+				floats := ([^]f32)(data_ptr)
+				
+				log.infof("Accessor Count: %d", accessor.count)
+				log.infof("Vertex 0: %f, %f, %f", floats[0], floats[1], floats[2])
+				log.infof("Vertex 1: %f, %f, %f", floats[3], floats[4], floats[5])
+				log.infof("Vertex 2: %f, %f, %f", floats[6], floats[7], floats[8])
+			}
+		}
     }
 
 	//
@@ -390,7 +393,7 @@ frame :: proc "c" () {
 		view = view,
 		model = model,
 	}
-	
+
 	for s in shapes {
 		// 3d draw
 		sg.apply_pipeline(state.pipeline)
